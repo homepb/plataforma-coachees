@@ -1,0 +1,106 @@
+rules_version = '2';
+
+// Regras de acesso (seção 7.2 do documento de requisitos):
+// - o coachee lê e escreve só os próprios documentos;
+// - o coach lê os documentos da sua carteira e escreve comentários, anotações e o conteúdo do programa;
+// - o administrador gerencia pessoas, planos, vendas e ajustes, mas NÃO lê o conteúdo do coaching
+//   (respostas, meta, diagnósticos). Para liberar, inclua admin() nas funções podeLer() e coachDe().
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function logado() { return request.auth != null; }
+    function eu() { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
+    function ativo() { return eu().get('ativo', true) != false; }
+    function admin() { return logado() && eu().papel == 'admin' && ativo(); }
+    function coach() { return logado() && eu().papel == 'coach' && ativo(); }
+    function equipe() { return admin() || coach(); }
+    function dono(cid) { return logado() && request.auth.uid == cid; }
+    // Coach responsável pelo coachee cid (RN-14).
+    function coachDe(cid) { return coach() && get(/databases/$(database)/documents/usuarios/$(cid)).data.get('coachId', '') == request.auth.uid; }
+    function podeLer(cid) { return dono(cid) || coachDe(cid); }
+    function mantemDono() { return request.resource.data.coacheeId == resource.data.coacheeId; }
+
+    match /usuarios/{uid} {
+      allow read: if dono(uid) || admin() || (coach() && resource.data.get('coachId', '') == request.auth.uid);
+      allow create: if admin();
+      // O coachee só altera foto, último acesso, aceite dos termos e o resumo do próprio progresso.
+      allow update: if admin()
+        || (dono(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['foto', 'ultimoAcesso', 'termos', 'resumo']));
+      allow delete: if false;
+    }
+
+    // Conteúdo do programa: igual para todos (RN-09).
+    match /trilhas/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /itens/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /mensagens/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /perguntas/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /encontros/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /materiais/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /fornecedores/{id} { allow read: if logado(); allow write: if equipe(); }
+    match /config/{id} { allow read: if logado(); allow write: if admin(); }
+
+    // Dados do coachee (RN-10): ele mesmo e o coach responsável.
+    match /progresso/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+      allow update: if dono(resource.data.coacheeId) && mantemDono();
+    }
+    match /acoes/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+      allow update: if dono(resource.data.coacheeId) && mantemDono();
+      allow delete: if dono(resource.data.coacheeId);
+    }
+    match /rotinas/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+      allow update: if dono(resource.data.coacheeId) && mantemDono();
+      allow delete: if dono(resource.data.coacheeId);
+    }
+    match /assessments/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+    }
+    match /vitorias/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+    }
+    match /paradas/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+    }
+    match /respostas/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create, update: if dono(request.resource.data.coacheeId);
+    }
+    match /insignias/{cid} {
+      allow read: if podeLer(cid);
+      allow write: if dono(cid);
+    }
+    match /comentarios/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create, update: if coachDe(request.resource.data.coacheeId);
+    }
+    // Anotações privadas do coach: o coachee não vê.
+    match /anotacoes/{cid} {
+      allow read, write: if coachDe(cid);
+    }
+    match /ouvidas/{id} {
+      allow read: if equipe() || dono(resource.data.coacheeId);
+      allow create: if dono(request.resource.data.coacheeId);
+    }
+    match /inscricoes/{cid} {
+      allow read: if dono(cid) || admin();
+      allow write: if dono(cid);
+    }
+
+    // Sessão individual avulsa (RN-12): o coachee pede; o administrador confirma o pagamento; o coach agenda.
+    match /pedidos/{id} {
+      allow read: if podeLer(resource.data.coacheeId) || admin();
+      allow create: if dono(request.resource.data.coacheeId) && request.resource.data.status == 'aguardando';
+      allow update: if (admin() || coachDe(resource.data.coacheeId)) && mantemDono();
+    }
+
+    match /vendas/{id} { allow read, write: if admin(); }
+  }
+}

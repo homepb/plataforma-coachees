@@ -1,0 +1,10 @@
+{
+  "name": "Programa de Alta Performance",
+  "short_name": "Alta Performance",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0E0E10",
+  "theme_color": "#0E0E10",
+  "icons": [{ "src": "img/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

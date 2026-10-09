@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "testes": "plataforma-coachees-testes",
+    "producao": "plataforma-coachees"
+  }
+}

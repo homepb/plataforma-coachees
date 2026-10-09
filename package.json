@@ -1,0 +1,18 @@
+{
+  "name": "plataforma-coachees",
+  "private": true,
+  "description": "Plataforma para os coachees do programa (site estático + Firebase).",
+  "scripts": {
+    "test": "node --test testes/regras.test.js && node testes/e2e.js",
+    "test:regras": "node --test testes/regras.test.js",
+    "test:e2e": "node testes/e2e.js",
+    "test:seguranca": "firebase emulators:exec --only firestore --project demo-coachees \"node --test testes/firestore.rules.test.js\"",
+    "test:firebase": "firebase emulators:exec --only auth,firestore --project demo-coachees \"node testes/firebase-e2e.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "3.0.4",
+    "firebase": "10.12.2",
+    "firebase-tools": "13.29.1",
+    "playwright": "^1.47.0"
+  }
+}
