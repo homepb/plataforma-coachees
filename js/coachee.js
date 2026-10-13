@@ -5,6 +5,25 @@ const P = () => R.paradas(S.u, C.D, hoje());
 const nomeCoach = () => S.u.coachNome || 'seu coach';
 const proxEncontro = () => C.encontros.find(e => e.data >= hoje()) || null;
 const metaAtual = () => R.meta(C.L, C.D);
+// A meta pode ser escrita já no "Hoje", antes de liberar a Trilha II: as respostas ficam guardadas no passo da meta
+// (sem concluí-lo) e aparecem preenchidas quando o coachee chegar a ele. A sequência da trilha não muda.
+const passoMeta = () => C.L.find(i => i.chave === 'meta');
+function botaoMeta(rotulo, classe, estilo = '') {
+  const pm = passoMeta(); if (!pm) return '';
+  return R.acessivel(C.L, C.D, pm) ? `<button class="${classe}" data-ir="item" data-p="${pm.id}" style="${estilo}">${rotulo}</button>`
+    : `<button class="${classe}" data-acao="escrever-meta" style="${estilo}">${rotulo}</button>`;
+}
+ACOES['escrever-meta'] = () => {
+  const pm = passoMeta(); const pr = C.D.progresso[pm.id]; const r = (pr && pr.respostas) || {};
+  abrirModal('Minha meta para 2027', `<p class="mu" style="margin:0 0 12px;font-size:13px">Escreva agora a sua meta. Ela aparece no seu "Hoje" e o seu coach já pode ler. Quando chegar ao passo 3 da Trilha II, você revisa e conclui o passo.</p>
+    ${(pm.campos || []).map((c, k) => `<div><label class="rotulo" for="mt-${k}">${esc(c.rotulo)}</label>${exemplo(c, true)}${campoHtml('mt-' + k, c, r[k], false)}</div>`).join('')}`,
+  'Salvar minha meta', async () => {
+    const resp = {}; (pm.campos || []).forEach((c, k) => { resp[k] = valor('mt-' + k); });
+    if (Object.values(resp).some(v => !v)) { toast('Preencha os três campos da sua meta.'); return false; }
+    await salvarProgresso(pm.id, { respostas: resp, metaEscritaEm: hoje() });
+    toast('Meta salva. Ela já aparece no seu "Hoje".'); render();
+  });
+};
 const lembreteMeta = (txt = 'Sua meta') => { const m = metaAtual(); return m ? `<div class="meta-mini"><span class="rotulinho ouro-tx">${txt}</span><span>${esc(m.meta)}</span></div>` : ''; };
 const nomeParada = p => `Parada ${p.n} · ${p.n * 3} meses`;
 const LOCK = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-label="bloqueado"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
@@ -110,8 +129,8 @@ VIEWS.coachee.painel = () => {
   ${m ? `<div class="card meta-card" style="margin-bottom:16px">
     <div class="rotulinho ouro-tx">Minha meta para 2027</div><div class="meta-txt">${esc(m.meta)}</div>
     <div class="meta-pq"><span><b>Por que importa:</b> ${esc(m.porque)}</span><span><b>Como vou saber:</b> ${esc(m.indicador)}</span></div>
-    <button class="bt bt-fantasma bt-sm" data-ir="item" data-p="${m.id}" style="margin-top:12px">Rever minha meta</button></div>`
-  : `<div class="card ouro" style="margin-bottom:16px"><div class="rotulinho ouro-tx">Minha meta para 2027</div><p style="margin:6px 0 12px">Sua meta ainda não está escrita. Ela é o centro de toda a sua jornada.</p>${(() => { const pm = L.find(i => i.chave === 'meta'); return pm && R.acessivel(L, D, pm) ? `<button class="bt bt-ouro" data-ir="item" data-p="${pm.id}">Escrever minha meta</button>` : '<span class="mu" style="font-size:12.5px">Você escreve a sua meta no passo 3 da Trilha II.</span>'; })()}</div>`}
+    ${botaoMeta('Rever minha meta', 'bt bt-fantasma bt-sm', 'margin-top:12px')}</div>`
+  : `<div class="card ouro" style="margin-bottom:16px"><div class="rotulinho ouro-tx">Minha meta para 2027</div><p style="margin:6px 0 12px">Sua meta ainda não está escrita. Ela é o centro de toda a sua jornada.</p>${botaoMeta('Escrever minha meta', 'bt bt-ouro')}</div>`}
   <div class="grade g2" style="margin-bottom:16px">${mensagemSemana()}${perguntaSemana()}</div>
   ${mapa()}
   ${prox ? `<div class="card ouro" style="margin-bottom:16px"><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">

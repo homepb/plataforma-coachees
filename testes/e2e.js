@@ -33,6 +33,12 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await p.click('[data-email="ana@demo.com"]'); await p.click('#form-login button[type=submit]'); await p.waitForTimeout(600);
     ok((await texto()).includes('Olá, Ana'), 'coachee entra e vê o Hoje');
     await foto('coachee-hoje');
+    // Meta escrita pelo "Hoje" sem liberar a Trilha II (progresso restaurado depois).
+    const progAntes = await p.evaluate(() => JSON.stringify(C.D.progresso));
+    await p.evaluate(() => { const pm = C.L.find(i => i.chave === 'meta'); C.D.progresso = {}; render(); });
+    await p.click('[data-acao="escrever-meta"]'); await p.fill('#mt-0', 'Meta antecipada'); await p.fill('#mt-1', 'Indicador'); await p.fill('#mt-2', 'Porque'); await modalSalvar();
+    ok((await texto()).includes('Meta antecipada') && await p.evaluate(() => { const pm = C.L.find(i => i.chave === 'meta'); return !R.feito(C.D, pm.id) && !R.acessivel(C.L, C.D, pm); }), 'coachee escreve a meta pelo Hoje sem liberar a Trilha II');
+    await p.evaluate(async j => { const pm = C.L.find(i => i.chave === 'meta'); await Dados.col('progresso').remover(`${S.u.id}_${pm.id}`); C.D.progresso = JSON.parse(j); const v = C.D.progresso[pm.id]; if (v) await Dados.col('progresso').salvar(`${S.u.id}_${pm.id}`, v); render(); }, progAntes);
 
     // ---------- coachee ----------
     for (const v of ['painel', 'jornada', 'quem', 'evolucao', 'pratica', 'comunidade']) {
