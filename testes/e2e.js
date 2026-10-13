@@ -120,6 +120,13 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       if (nome === 'celular') ok(!(await transborda()), `admin: ${v} sem rolagem lateral`);
     }
     await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]');
+    const visivel = () => p.$eval('#pe-so-coachee', e => !e.hidden);
+    ok(await visivel() && await p.$eval('#pe-linha-admin', e => e.hidden), 'coachee: aparecem coach responsável e início, e nunca a opção de administrador');
+    await p.selectOption('#pe-papel', 'coach');
+    ok(!(await visivel()) && await p.$eval('#pe-linha-admin', e => !e.hidden), 'coach: sem coach responsável, com opção de administrador');
+    await p.selectOption('#pe-papel', 'admin');
+    ok(await p.$eval('#pe-linha-admin', e => e.hidden), 'administrador: sem a opção extra de administrador');
+    await p.selectOption('#pe-papel', 'coachee');
     await p.fill('#pe-nome', 'Laura Teste'); await p.fill('#pe-email', 'laura@demo.com'); await modalSalvar();
     ok((await confirmacao()).includes('Coachee cadastrado'), 'mensagem de confirmação do cadastro pelo administrador');
     ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'laura@demo.com' && u.fim)), 'nova coachee criada com fim do acesso');

@@ -128,8 +128,12 @@ test('coach ou coachee com acesso de administrador', async () => {
   await assertSucceeds(db('vinadm').doc('vendas/v1').get());
   await assertSucceeds(doCoachee('vinadm', 'polly'));
   await assertFails(doCoachee('vinadm', 'ana'));
-  await assertSucceeds(db('polly').collection('usuarios').get());
-  await assertFails(doCoachee('polly', 'ana'));
+  // Coachee nunca é administrador, mesmo com o campo admin gravado.
+  await assertFails(db('polly').collection('usuarios').get());
+  await assertFails(db('polly').doc('vendas/v1').get());
+  await assertFails(db('admin').doc('usuarios/ana').update({ admin: true }));
+  await assertFails(db('admin').doc('usuarios/novo8').set({ nome: 'X', papel: 'coachee', coachId: 'vini', admin: true }));
+  await assertSucceeds(db('admin').doc('usuarios/vini').update({ admin: true }));
   // Ninguém se dá acesso de administrador sozinho.
   await assertFails(db('ana').doc('usuarios/ana').update({ admin: true }));
   await assertFails(db('vini').doc('usuarios/novo7').set({ nome: 'X', papel: 'coachee', coachId: 'vini', admin: true }));

@@ -11,8 +11,9 @@ service cloud.firestore {
     function logado() { return request.auth != null; }
     function eu() { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
     function ativo() { return eu().get('ativo', true) != false; }
-    // Administrador: o papel principal é admin, ou o coach/coachee tem também o acesso de administrador.
-    function admin() { return logado() && (eu().papel == 'admin' || eu().get('admin', false) == true) && ativo(); }
+    // Administrador: o papel principal é admin, ou é coach com o acesso de administrador. Coachee nunca é administrador.
+    function admin() { return logado() && (eu().papel == 'admin' || (eu().papel == 'coach' && eu().get('admin', false) == true)) && ativo(); }
+    function coacheeSemAdmin() { return !(request.resource.data.get('papel', '') == 'coachee' && request.resource.data.get('admin', false) == true); }
     function coach() { return logado() && eu().papel == 'coach' && ativo(); }
     function equipe() { return admin() || coach(); }
     function dono(cid) { return logado() && request.auth.uid == cid; }
@@ -24,11 +25,11 @@ service cloud.firestore {
     match /usuarios/{uid} {
       allow read: if dono(uid) || admin() || (coach() && resource.data.get('coachId', '') == request.auth.uid);
       // O coach cadastra coachees só na própria carteira.
-      allow create: if admin()
+      allow create: if (admin() && coacheeSemAdmin())
         || (coach() && request.resource.data.papel == 'coachee' && request.resource.data.coachId == request.auth.uid
             && request.resource.data.get('admin', false) == false);
       // O coachee só altera foto, último acesso, aceite dos termos e o resumo do próprio progresso.
-      allow update: if admin()
+      allow update: if (admin() && coacheeSemAdmin())
         || (dono(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['foto', 'ultimoAcesso', 'termos', 'resumo']))
         // O coach remove (desativa) coachees da própria carteira; só o administrador reativa.
         || (coach() && resource.data.get('coachId', '') == request.auth.uid && resource.data.papel == 'coachee'

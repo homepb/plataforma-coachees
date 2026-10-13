@@ -152,15 +152,13 @@ async function definirSenha(email, senha) {
   await ir('entradas'); await p.click('[data-acao="confirmar-sessao"]'); await espera(1000);
   ok(await p.evaluate(() => C.pedidos[0].status === 'pago'), 'administrador confirma o pagamento da sessão');
   ok(await p.evaluate(() => { const a = C.usuarios.find(u => u.email === 'ana@teste.com'); return a.resumo && a.resumo.pct > 0; }), 'resumo do progresso chega ao administrador');
-  // Administradora que também é coachee: edita o próprio cadastro e troca de perfil.
+  // Coachee nunca é administrador: a administradora não consegue virar coachee.
   await ir('pessoas'); await p.click(`[data-acao="pessoa"][data-id="${await p.evaluate(() => S.u.id)}"]`);
-  await p.selectOption('#pe-papel', 'coachee'); await p.check('#pe-admin', { force: true }); await salvarModal();
-  ok(await p.evaluate(() => S.u.papel === 'coachee' && S.u.admin === true && !!S.u.coachId), 'administradora passa a ser coachee + administradora');
-  await p.click('[data-acao="trocar-modo"]'); await espera(1500);
-  if (await p.$('#aceite')) { await p.check('#aceite', { force: true }); await salvarModal(); }
-  ok(await p.evaluate(() => S.modo === 'coachee') && (await texto()).includes('Minha jornada'), 'administradora troca para Coachee e vê a própria jornada');
-  await p.click('[data-acao="trocar-modo"]'); await espera(1500);
-  ok((await texto()).includes('Como estamos'), 'e volta para Administrador');
+  await p.selectOption('#pe-papel', 'coachee');
+  ok(await p.$eval('#pe-linha-admin', e => e.hidden), 'coachee não tem a opção de administrador');
+  await p.click('#form-modal button[type=submit]'); await espera(600);
+  ok(await p.evaluate(() => S.u.papel === 'admin' && $('#modal').open), 'administradora não consegue virar coachee');
+  await p.click('#form-modal [data-fechar]'); await espera(300);
 
   ok(erros.length === 0, 'nenhum erro nem permissão negada' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await b.close(); servidor.close();

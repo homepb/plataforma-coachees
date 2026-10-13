@@ -96,8 +96,8 @@ async function carregarCoachee(id) {
   };
 }
 
-// Perfis da pessoa: o principal (papel) e, quando marcado, também o de administrador.
-const modos = u => (u.admin && u.papel !== 'admin') ? [u.papel, 'admin'] : [u.papel];
+// Perfis da pessoa: o principal (papel) e, para coach marcado, também o de administrador. Coachee nunca é administrador.
+const modos = u => (u.admin && u.papel === 'coach') ? ['coach', 'admin'] : [u.papel];
 const lerModo = u => { try { const m = localStorage.getItem('modo-' + u.id); return modos(u).includes(m) ? m : u.papel; } catch (e) { return u.papel; } };
 const gravarModo = (u, m) => { try { localStorage.setItem('modo-' + u.id, m); } catch (e) { /* só nesta visita */ } };
 
