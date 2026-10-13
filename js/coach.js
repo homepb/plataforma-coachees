@@ -206,7 +206,7 @@ VIEWS.coach.ficha = () => {
     </div></div>
     <div class="card"><h3>Caminho recente</h3><div class="lista">${cam.map(e => `<div class="item" style="align-items:flex-start"><div class="tx"><b style="font-weight:600">${esc(e.texto)}</b><small class="num">${br(e.data)}</small>${e.id ? seuComentario(D, 'vitoria:' + e.id) : ''}</div><span class="chip">${e.tipo}</span>${e.id ? `<button class="bt bt-fantasma bt-sm" data-acao="comentar" data-c="${u.id}" data-alvo="vitoria:${e.id}">${D.comentarios['vitoria:' + e.id] ? 'Editar' : 'Reconhecer'}</button>` : ''}</div>`).join('')}</div></div>`;
   }
-  if (S.aba === 'assess') corpo = `<div class="grade g3">${['disc', 'ie', 'a360'].map(k => cartaoAssess(k, D, true, Pp)).join('')}</div>
+  if (S.aba === 'assess') corpo = `<div class="grade g2">${Object.keys(CONTEUDO.ASSESS).map(k => cartaoAssess(k, D, true, Pp)).join('')}</div>
     <p class="mu" style="font-size:12.5px;margin-top:10px">Os assessments são refeitos a cada parada trimestral. Quando houver mais de um resultado, a comparação aparece aqui.</p>`;
   if (S.aba === 'respostas') {
     const itens = C.L.filter(i => D.progresso[i.id] && (i.tipo === 'passo' ? D.progresso[i.id].ok : D.progresso[i.id].respostas));

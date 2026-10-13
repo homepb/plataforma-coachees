@@ -108,8 +108,8 @@ const CONTEUDO = (() => {
 
   const ASSESS = {
     disc: { nome: 'Perfil DISC', desc: 'Teste no site do NBM; o resultado fica registrado aqui.' },
-    ie: { nome: QUEST.ie.nome, desc: QUEST.ie.desc },
-    a360: { nome: QUEST.a360.nome, desc: QUEST.a360.desc }
+    ie: { nome: QUEST.ie.nome, desc: QUEST.ie.desc }
+    // Autodiagnóstico 360º retirado a pedido (13/10/2026); o questionário segue em QUEST.a360 se voltar.
   };
 
   const DISC = {

@@ -71,10 +71,13 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     ok((await texto()).includes('Fiz a primeira reunião de 1:1'), 'vitória registrada no caminho');
     await ir('painel'); await p.fill('#pergunta-resp', 'Delegar o relatório.'); await p.click('#form-pergunta button'); await p.waitForTimeout(250);
     ok((await texto()).includes('Delegar o relatório.'), 'resposta à pergunta da semana');
-    await ir('quem'); await p.click('[data-ir="questionario"][data-p="a360"]'); await p.waitForTimeout(150);
-    for (let i = 0; i < 15; i++) await p.check(`input[name="q${i}"][value="${(i % 5) + 1}"]`, { force: true });
+    // A Ana da demonstração já fez a inteligência emocional: o teste refaz a partir do zero.
+    await p.evaluate(() => { C.D.assessments = C.D.assessments.filter(a => a.tipo !== 'ie'); });
+    await ir('quem'); ok(!(await texto()).includes('Autodiagnóstico 360'), 'autodiagnóstico 360º não aparece mais');
+    await p.click('[data-ir="questionario"][data-p="ie"]'); await p.waitForTimeout(150);
+    for (let i = 0; i < 10; i++) await p.check(`input[name="q${i}"][value="${(i % 5) + 1}"]`, { force: true });
     await p.click('#form-quest button[type=submit]'); await p.waitForTimeout(300);
-    ok(await p.evaluate(() => C.D.assessments.some(a => a.tipo === 'a360')), 'autodiagnóstico 360º registrado');
+    ok(await p.evaluate(() => C.D.assessments.some(a => a.tipo === 'ie')), 'inteligência emocional registrada');
     ok((await texto()).includes('Refazer na parada'), 'assessment volta a bloquear até a próxima parada');
     await ir('jornada'); await p.click('[data-acao="sessao"]'); await p.fill('#ss-m', 'Preparar a conversa com a diretoria'); await modalSalvar();
     ok(await p.evaluate(() => C.pedidos.length === 1), 'pedido de sessão individual registrado');
