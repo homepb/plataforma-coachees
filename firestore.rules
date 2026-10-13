@@ -22,7 +22,9 @@ service cloud.firestore {
 
     match /usuarios/{uid} {
       allow read: if dono(uid) || admin() || (coach() && resource.data.get('coachId', '') == request.auth.uid);
-      allow create: if admin();
+      // O coach cadastra coachees só na própria carteira.
+      allow create: if admin()
+        || (coach() && request.resource.data.papel == 'coachee' && request.resource.data.coachId == request.auth.uid);
       // O coachee só altera foto, último acesso, aceite dos termos e o resumo do próprio progresso.
       allow update: if admin()
         || (dono(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['foto', 'ultimoAcesso', 'termos', 'resumo']));

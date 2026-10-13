@@ -80,7 +80,8 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coach: ${v} abre`);
       if (nome === 'celular') ok(!(await transborda()), `coach: ${v} sem rolagem lateral`);
     }
-    await ir('encontros'); ok((await texto()).includes('Testar a nova pauta') === false || true, 'pauta da mentoria carregada');
+    await ir('pessoas'); await p.click('[data-acao="novo-coachee"]'); await p.fill('#nc-nome', 'Marcos Novo'); await p.fill('#nc-email', 'marcos@demo.com'); await modalSalvar();
+    ok((await texto()).includes('Marcos Novo') && await p.evaluate(() => daCarteira(C.carteira.find(c => c.u.email === 'marcos@demo.com').u.id).u.coachId === 'vinicius'), 'coach cadastra coachee na própria carteira');
     await ir('ficha', 'ana');
     for (const a of ['geral', 'acao', 'evolucao', 'assess', 'respostas']) { await p.click(`[data-aba="${a}"]`); await p.waitForTimeout(120); ok(!(await texto()).includes('Não foi possível'), `ficha: aba ${a}`); }
     await p.click('[data-acao="comentar"][data-alvo="a31"]'); await p.fill('#cm-t', 'Ótimo começo, Ana.'); await modalSalvar();

@@ -63,6 +63,13 @@ test('coachee não muda o próprio perfil, prazo ou coach', async () => {
   await assertFails(db('vini').doc('usuarios/novo2').set({ nome: 'X', papel: 'coachee' }));
 });
 
+test('coach cadastra coachee só na própria carteira', async () => {
+  await assertSucceeds(db('vini').doc('usuarios/novo3').set({ nome: 'Novo', papel: 'coachee', coachId: 'vini' }));
+  await assertFails(db('vini').doc('usuarios/novo4').set({ nome: 'Novo', papel: 'coachee', coachId: 'mari' }));
+  await assertFails(db('vini').doc('usuarios/novo5').set({ nome: 'Novo', papel: 'coach', coachId: 'vini' }));
+  await assertFails(db('ana').doc('usuarios/novo6').set({ nome: 'Novo', papel: 'coachee', coachId: 'ana' }));
+});
+
 test('anotações do coach são privadas', async () => {
   await assertFails(db('ana').doc('anotacoes/ana').get());
   await assertSucceeds(db('vini').doc('anotacoes/ana').get());

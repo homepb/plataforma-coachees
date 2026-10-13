@@ -79,7 +79,7 @@ VIEWS.coach.pessoas = () => {
   const lista = (C.carteira || []).map(c => ({ ...c, s: R.situacao(c.u, c.D, h), prox: R.proximo(C.L, c.D) }))
     .filter(c => (S.filtro === 'todos' || c.s.st === S.filtro) && (!q || c.u.nome.toLowerCase().includes(q)));
   return `
-  <div class="topo"><div><div class="sobre">Quem você acompanha</div><h1>Minhas pessoas</h1></div></div>
+  <div class="topo"><div><div class="sobre">Quem você acompanha</div><h1>Minhas pessoas</h1></div><button class="bt bt-ouro" data-acao="novo-coachee">+ Novo coachee</button></div>
   <div class="ferramentas">
     <div class="busca"><input class="campo" id="busca" placeholder="Buscar por nome" value="${esc(S.busca)}" aria-label="Buscar coachee">${svg('busca')}</div>
     <select class="campo" data-muda="filtro" aria-label="Filtrar por situação">${[['todos', 'Todas as situações'], ['ok', 'Em dia'], ['atencao', 'Atenção'], ['parado', 'Parados'], ['renovar', 'Renovação'], ['novo', 'Novos']].map(([v, l]) => `<option value="${v}" ${S.filtro === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -94,6 +94,28 @@ VIEWS.coach.pessoas = () => {
   </table></div></div>`;
 };
 MUDA.filtro = t => { S.filtro = t.value; render(); };
+
+// O coach também cadastra coachees, sempre na própria carteira (o administrador continua podendo transferir).
+ACOES['novo-coachee'] = () => {
+  abrirModal('Novo coachee', `
+    <label class="rotulo" for="nc-nome">Nome</label><input class="campo" id="nc-nome" placeholder="Nome completo">
+    <label class="rotulo" for="nc-email">E-mail</label><input class="campo" id="nc-email" type="email" placeholder="nome@empresa.com.br">
+    <div class="duas">
+      <div><label class="rotulo" for="nc-cargo">Cargo / empresa</label><input class="campo" id="nc-cargo"></div>
+      <div><label class="rotulo" for="nc-ini">Início</label><input class="campo" id="nc-ini" type="date" value="${hoje()}"></div>
+    </div>
+    <p class="mu" style="font-size:12.5px;margin:0">Entra na sua carteira, no plano Master, com acesso por 12 meses. A pessoa recebe um e-mail para criar a senha.</p>`,
+  'Criar e enviar acesso', async () => {
+    const nome = valor('nc-nome'), email = valor('nc-email'), inicio = valor('nc-ini') || hoje();
+    if (!nome) { toast('Informe o nome.'); return false; }
+    if (!/^\S+@\S+\.\S+$/.test(email)) { toast('Informe um e-mail válido.'); return false; }
+    const d = { nome, email, papel: 'coachee', cargo: valor('nc-cargo'), coachId: S.u.id, coachNome: S.u.nome, inicio, fim: R.fimDoAcesso(inicio), ativo: true, criado: hoje() };
+    const id = await criarPessoa(d);
+    C.carteira.push({ u: { id, ...d, email: email.toLowerCase() }, D: { progresso: {}, acoes: [], rotinas: [], assessments: [], vitorias: [], paradas: {}, comentarios: {}, respostas: {}, insignias: { ganhas: {} } } });
+    C.carteira.sort((a, b) => a.u.nome.localeCompare(b.u.nome));
+    toast(`Acesso criado. ${primeiroNome(nome)} recebe o e-mail para criar a senha.`); render();
+  });
+};
 
 /* ===================== Ficha do coachee (RF-52, RF-53) ===================== */
 const botaoComentar = (cid, alvo, D) => `<button class="bt bt-linha bt-sm" data-acao="comentar" data-c="${cid}" data-alvo="${esc(alvo)}">${D.comentarios[alvo] ? 'Editar comentário' : 'Comentar'}</button>`;

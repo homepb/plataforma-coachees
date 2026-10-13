@@ -63,7 +63,7 @@ VIEWS.admin.pessoas = () => {
 // Cria o acesso (login + cadastro) e manda as boas-vindas (RF-02, RF-70).
 async function criarPessoa(d) {
   const id = await Dados.criarAcesso(d);
-  C.usuarios.push({ id, ...d, email: d.email.toLowerCase() });
+  if (C.usuarios) C.usuarios.push({ id, ...d, email: d.email.toLowerCase() });
   const ej = C.cfg.emailjs || {};
   if (d.papel === 'coachee' && ej.modeloBoasVindas) {
     await Dados.enviarEmail(ej, ej.modeloBoasVindas, { to_email: d.email, to_name: primeiroNome(d.nome), plano: 'Master', data_fim: br(d.fim), link_whatsapp: C.cfg.whatsapp || '', link_plataforma: location.origin + location.pathname }).catch(() => false);

@@ -122,6 +122,8 @@ async function definirSenha(email, senha) {
   await p.click('[data-acao="comentar"][data-alvo="e3"]'); await p.fill('#cm-t', 'Meta clara. Vamos juntos.'); await salvarModal();
   await p.click('[data-aba="geral"]'); await p.click('[data-acao="anotacao"]'); await p.fill('#an-t', 'Perfil executor.'); await salvarModal();
   ok(await p.evaluate(() => C.anotacao.texto === 'Perfil executor.'), 'anotação privada salva');
+  await ir('pessoas'); await p.click('[data-acao="novo-coachee"]'); await p.fill('#nc-nome', 'Marcos Novo'); await p.fill('#nc-email', 'marcos@teste.com'); await salvarModal(); await espera(800);
+  ok(await p.evaluate(() => C.carteira.some(c => c.u.email === 'marcos@teste.com') && S.u.email === 'vinicius@teste.com'), 'coach cadastra coachee na própria carteira');
   await ir('encontros'); ok((await texto()).includes('Reunião semanal com a equipe'), 'ação na pauta da mentoria');
   await p.click('.topo [data-acao="encontro"]'); await p.fill('#en-tit', 'Delegação'); await p.fill('#en-d', '2030-01-10'); await salvarModal();
   await ir('ensino'); await p.click('.topo [data-acao="mensagem"]'); await p.fill('#ms-t', 'Delegar não é perder o controle'); await salvarModal();
