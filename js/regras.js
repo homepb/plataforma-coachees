@@ -112,13 +112,15 @@ const Regras = (() => {
       return { seg, n: ev.filter(e => e.data >= seg && e.data <= fim).length };
     });
   }
-  // Semanas seguidas em movimento até a atual. A semana atual ainda vazia não quebra a sequência.
+  // Semanas seguidas em movimento. Só contam semanas já fechadas (segunda a domingo): a semana atual
+  // entra na conta quando termina, então ninguém aparece com "1 semana" no primeiro dia.
   function sequencia(L, D, u, h) {
     const s = semanas(L, D, u, h, 60);
-    let i = s.length - 1; if (s[i].n === 0) i--;
-    let c = 0; for (; i >= 0 && s[i].n > 0; i--) c++;
+    let c = 0; for (let i = s.length - 2; i >= 0 && s[i].n > 0; i--) c++;
     return c;
   }
+  // A semana atual já tem movimento (vai somar na sequência quando fechar).
+  const semanaAtiva = (L, D, u, h) => semanas(L, D, u, h, 1)[0].n > 0;
 
   /* ---------- insígnias (RN-05) ---------- */
   function insignias(L, D, u, h) {
@@ -175,7 +177,7 @@ const Regras = (() => {
 
   return { iso, hoje, somaDias, somaMeses, dias, segunda, fimDoAcesso, lista, feito, proximo, acessivel, statusTrilha, pct,
     meta, areasInicio, atrasada, paradas, paradaAberta, proximaParada, historico, liberado, resultadoQuest,
-    percurso, semanas, sequencia, insignias, situacao, precisam };
+    percurso, semanas, sequencia, semanaAtiva, insignias, situacao, precisam };
 })();
 
 if (typeof module !== 'undefined') module.exports = Regras;

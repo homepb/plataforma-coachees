@@ -7,6 +7,8 @@ const proxEncontro = () => C.encontros.find(e => e.data >= hoje()) || null;
 const metaAtual = () => R.meta(C.L, C.D);
 // A meta pode ser escrita já no "Hoje", antes de liberar a Trilha II: as respostas ficam guardadas no passo da meta
 // (sem concluí-lo) e aparecem preenchidas quando o coachee chegar a ele. A sequência da trilha não muda.
+// Explica por que a semana atual ainda não aparece na sequência.
+const notaSemana = (seq, h) => R.semanaAtiva(C.L, C.D, S.u, h) ? `<div class="mu" style="font-size:12px;margin-top:4px">${seq ? '+ esta semana, que entra na conta no domingo' : 'Sua semana já está em movimento: ela entra na conta no domingo.'}</div>` : '';
 const passoMeta = () => C.L.find(i => i.chave === 'meta');
 function botaoMeta(rotulo, classe, estilo = '') {
   const pm = passoMeta(); if (!pm) return '';
@@ -139,7 +141,7 @@ VIEWS.coachee.painel = () => {
         <div class="mu">Trilha ${esc(prox.t.n)} · ${esc(prox.t.titulo)} · ${prox.tipo === 'aula' ? `aula · ${prox.dur || 15} min` : `passo ${prox.k + 1} de ${prox.total}`}</div></div>
       <button class="bt bt-ouro" data-ir="item" data-p="${prox.id}">${prox.tipo === 'aula' ? 'Assistir agora' : 'Continuar'}</button></div></div>` : ''}
   <div class="card" style="margin-bottom:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-    <div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Você está em movimento</div><div style="font-weight:700;font-size:16px;margin-top:4px;display:flex;align-items:center"><span class="chama num">${seq}</span>${plural(seq, 'semana seguida', 'semanas seguidas')} em movimento</div>
+    <div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Você está em movimento</div><div style="font-weight:700;font-size:16px;margin-top:4px;display:flex;align-items:center"><span class="chama num">${seq}</span>${plural(seq, 'semana seguida', 'semanas seguidas')} em movimento</div>${notaSemana(seq, h)}
       <div class="mu" style="font-size:12.5px;margin-top:4px">${plural(L.filter(i => R.feito(D, i.id)).length, 'passo ou aula', 'passos e aulas')} e ${plural(D.acoes.filter(a => a.ok).length, 'ação feita', 'ações feitas')} desde ${brc(S.u.inicio)}.${pp ? ` Próxima parada para olhar para trás: ${brc(pp.data)}.` : ''}</div></div>
     <button class="bt bt-linha" data-ir="evolucao">Ver minha evolução</button></div>
   <div class="grade g2">
@@ -458,7 +460,7 @@ VIEWS.coachee.evolucao = () => {
     <div class="card kpi"><div class="v num">${Math.max(R.dias(S.u.inicio, h), 0)}</div><div class="l">dias de jornada desde ${brc(S.u.inicio)}</div></div>
     <div class="card kpi"><div class="v num">${feitos}</div><div class="l">passos e aulas concluídos</div></div>
     <div class="card kpi"><div class="v num">${acoes}</div><div class="l">${acoes === 1 ? 'ação colocada' : 'ações colocadas'} em prática</div></div>
-    <div class="card kpi ouro"><div class="v num">${seq}</div><div class="l">semanas seguidas em movimento</div></div>
+    <div class="card kpi ouro"><div class="v num">${seq}</div><div class="l">semanas seguidas em movimento</div>${notaSemana(seq, h)}</div>
   </div>
   <div class="card" style="margin-bottom:16px"><h3>Insígnias <span class="mu acao num" style="font-size:12px;font-weight:500">${ins.filter(i => i.ok).length} de ${ins.length}</span></h3>
     ${[['pratica', 'Na prática · o que mais vale'], ['jornada', 'Na jornada']].map(([gr, rot]) => `<div class="rotulinho ${gr === 'pratica' ? 'ouro-tx' : ''}" style="margin:6px 0 4px">${rot}</div>

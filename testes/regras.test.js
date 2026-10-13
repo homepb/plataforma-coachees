@@ -56,10 +56,14 @@ test('assessment bloqueia depois de feito e libera na parada (RN-15)', () => {
 test('semanas em movimento e sequência (RN-04)', () => {
   const D = vazio();
   D.vitorias.push({ data: '2026-09-21', texto: 'a' }, { data: '2026-09-29', texto: 'b' }, { data: '2026-10-05', texto: 'c' });
-  // Semana atual (a partir de 05/10) tem atividade; as duas anteriores também.
-  assert.equal(R.sequencia(L, D, u, '2026-10-07'), 3);
-  // Semana atual ainda vazia não quebra a sequência.
+  // Semana atual (a partir de 05/10) tem atividade, mas só conta quando fechar: valem as duas anteriores.
+  assert.equal(R.sequencia(L, D, u, '2026-10-07'), 2);
+  assert.equal(R.semanaAtiva(L, D, u, '2026-10-07'), true);
+  // Fechada a semana de 05/10, ela entra na conta; a semana atual ainda vazia não quebra a sequência.
   assert.equal(R.sequencia(L, D, u, '2026-10-12'), 3);
+  // Primeiro dia com atividade: ainda 0 semanas.
+  const D1 = vazio(); D1.vitorias.push({ data: '2026-10-13', texto: 'x' });
+  assert.equal(R.sequencia(L, D1, u, '2026-10-13'), 0);
   assert.equal(R.sequencia(L, D, u, '2026-10-20'), 0);
   const s = R.semanas(L, D, u, '2026-10-07', 3);
   assert.deepEqual(s.map(x => x.n), [1, 1, 1]);
