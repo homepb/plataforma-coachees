@@ -128,7 +128,7 @@ const daCarteira = id => (C.carteira || []).find(c => c.u.id === id);
 const NAV = {
   coachee: [['painel', 'Hoje'], ['jornada', 'Minha jornada'], ['quem', 'Quem eu sou'], ['evolucao', 'Minha evolução'], ['pratica', 'Na prática'], ['comunidade', 'Comunidade']],
   coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino']],
-  admin: [['painel', 'Como estamos'], ['pessoas', 'Pessoas'], ['coaches', 'Time de coaches'], ['planos', 'Planos'], ['entradas', 'Novas entradas'], ['ajustes', 'Ajustes']]
+  admin: [['painel', 'Como estamos'], ['pessoas', 'Pessoas'], ['planos', 'Planos'], ['entradas', 'Novas entradas'], ['ajustes', 'Ajustes']]
 };
 const ATIVO = { coachee: { item: 'jornada', questionario: 'quem', certificado: 'jornada' }, coach: { ficha: 'pessoas' }, admin: {} };
 const IC = {
@@ -140,7 +140,6 @@ const IC = {
   comunidade: '<path d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4zM20 5h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6z"/>',
   pessoas: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6 6 0 0 1 3.5 5.5"/>',
   ensino: '<path d="M5 4h14v16H5zM9 8h6M9 12h6M9 16h3"/>',
-  coaches: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>',
   planos: '<path d="M3 7h18v12H3zM3 11h18M7 15h4"/>',
   entradas: '<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>',
   ajustes: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>',

@@ -1,4 +1,4 @@
-// Telas e ações do administrador: Como estamos · Pessoas · Time de coaches · Planos · Novas entradas · Ajustes.
+// Telas e ações do administrador: Como estamos · Pessoas · Planos · Novas entradas · Ajustes.
 // O administrador cuida do negócio: não lê respostas, meta nem diagnósticos (só o resumo numérico em usuarios.resumo).
 
 const coaches = () => (C.usuarios || []).filter(u => u.papel === 'coach' && u.ativo !== false);
@@ -17,7 +17,7 @@ VIEWS.admin.painel = () => {
   const parados = at.filter(u => !u.ultimoAcesso || R.dias(u.ultimoAcesso, h) > 7).length;
   const trilhas = ['I', 'II', 'III', 'IV'];
   return `
-  <div class="topo"><div><div class="sobre">${MESES[new Date().getMonth()].replace(/^./, c => c.toUpperCase())} de ${new Date().getFullYear()}</div><h1>Como estamos</h1><div class="sub">Pessoas no programa, time de coaches e novas entradas.</div></div>
+  <div class="topo"><div><div class="sobre">${MESES[new Date().getMonth()].replace(/^./, c => c.toUpperCase())} de ${new Date().getFullYear()}</div><h1>Como estamos</h1><div class="sub">Pessoas no programa, coaches e novas entradas.</div></div>
     <button class="bt bt-ouro" data-acao="pessoa">+ Nova pessoa</button></div>
   <div class="grade g4" style="margin-bottom:16px">
     <div class="card kpi"><div class="v num">${at.length}</div><div class="l">coachees ativos no plano Master</div></div>
@@ -151,36 +151,6 @@ Object.assign(ACOES, {
     $('#modal').close(); toast(`Acesso renovado até ${br(fim)}.`); render();
   }
 });
-
-/* ===================== Time de coaches (RF-62) ===================== */
-VIEWS.admin.coaches = () => {
-  const h = hoje();
-  return `
-  <div class="topo"><div><div class="sobre">Quem acompanha</div><h1>Time de coaches</h1></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt bt-linha" data-acao="transferir">Transferir coachee</button><button class="bt bt-ouro" data-acao="pessoa" data-papel="coach">+ Novo coach</button></div></div>
-  <div class="grade g2">
-    ${coaches().map(co => { const cart = ativos().filter(c => c.coachId === co.id).map(c => ({ c, s: R.situacao(c, null, h) }));
-      const emDia = cart.filter(x => x.s.st === 'ok' || x.s.st === 'novo').length;
-      return `<div class="card"><div style="display:flex;gap:14px;align-items:center;margin-bottom:16px">${av(co, '', 'width:48px;height:48px;font-size:15px;')}<div><div style="font-family:var(--f-display);font-size:24px;font-weight:600;line-height:1.1">${esc(co.nome)}</div><div class="mu">${esc(co.email)}</div></div></div>
-        <div class="grade g3" style="gap:10px;margin-bottom:14px">
-          <div><div class="rotulinho">Carteira</div><div class="num" style="font-size:22px;font-weight:800">${cart.length}</div></div>
-          <div><div class="rotulinho">Em dia</div><div class="num" style="font-size:22px;font-weight:800">${emDia}</div></div>
-          <div><div class="rotulinho">Atenção</div><div class="num" style="font-size:22px;font-weight:800">${cart.length - emDia}</div></div>
-        </div>
-        <div class="lista">${cart.map(({ c, s }) => `<div class="item">${av(c)}<div class="tx"><b>${esc(c.nome)}</b><small>${c.resumo ? `Trilha ${esc(c.resumo.trilha === 'fim' ? 'concluída' : c.resumo.trilha)} · ${c.resumo.pct}%` : 'Ainda não começou'}</small></div>${chipSt(s.st)}</div>`).join('') || '<div class="vazio">Nenhum coachee na carteira.</div>'}</div>
-      </div>`; }).join('') || '<div class="card"><p class="mu">Nenhum coach cadastrado.</p></div>'}
-  </div>`;
-};
-ACOES.transferir = () => {
-  const cs = coaches();
-  abrirModal('Transferir coachee', `<label class="rotulo" for="tr-c">Coachee</label><select class="campo" id="tr-c">${ativos().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${c.id}">${esc(c.nome)} · hoje com ${esc(nomeDe(c.coachId))}</option>`).join('')}</select>
-    <label class="rotulo" for="tr-n">Novo coach responsável</label><select class="campo" id="tr-n">${cs.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select>
-    <p class="mu" style="font-size:12.5px;margin:0">O novo coach passa a ver o histórico, as respostas e a evolução do coachee. O anterior deixa de ver.</p>`, 'Transferir', async () => {
-    const c = C.usuarios.find(x => x.id === valor('tr-c')); const co = cs.find(x => x.id === valor('tr-n'));
-    if (!c || !co) return false;
-    await col('usuarios').salvar(c.id, { coachId: co.id, coachNome: co.nome }); Object.assign(c, { coachId: co.id, coachNome: co.nome });
-    toast(`${primeiroNome(c.nome)} agora é acompanhado(a) por ${co.nome}.`); render();
-  });
-};
 
 /* ===================== Planos (RF-63) ===================== */
 const MARCA_OK = '<span style="width:20px;height:20px;border-radius:50%;background:var(--gold);color:#17130B;display:grid;place-items:center;font-size:11px;font-weight:800;flex-shrink:0">✓</span>';

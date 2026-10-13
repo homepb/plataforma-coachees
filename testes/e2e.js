@@ -109,7 +109,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     // ---------- administrador ----------
     await entrar('admin@demo.com');
     ok((await texto()).includes('Como estamos'), 'administrador entra');
-    for (const v of ['painel', 'pessoas', 'coaches', 'planos', 'entradas', 'ajustes']) {
+    for (const v of ['painel', 'pessoas', 'planos', 'entradas', 'ajustes']) {
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `admin: ${v} abre`);
       if (nome === 'celular') ok(!(await transborda()), `admin: ${v} sem rolagem lateral`);
     }

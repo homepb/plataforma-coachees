@@ -69,7 +69,7 @@ async function definirSenha(email, senha) {
   await ir('ajustes'); await p.click('[data-acao="instalar"]'); await espera(2500);
   ok(await p.evaluate(() => C.L.length === 20), 'conteúdo inicial instalado (20 itens)');
   await p.fill('#aj-wa', 'https://chat.whatsapp.com/teste'); await p.click('#form-ajustes button[type=submit]'); await espera(600);
-  await ir('coaches'); await p.click('[data-acao="pessoa"][data-papel="coach"]');
+  await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]'); await p.selectOption('#pe-papel', 'coach');
   await p.fill('#pe-nome', 'Vinicius'); await p.fill('#pe-email', 'vinicius@teste.com'); await salvarModal(); await espera(800);
   ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'vinicius@teste.com' && u.papel === 'coach')), 'coach criado (login + cadastro + e-mail de senha)');
   await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]');
