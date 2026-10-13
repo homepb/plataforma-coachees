@@ -139,7 +139,11 @@ async function definirSenha(email, senha) {
   ok(await p.evaluate(() => !C.carteira.some(c => c.u.email === 'marcos@teste.com')), 'coach remove coachee (regra do banco aceita)');
   await ir('encontros'); ok((await texto()).includes('Reunião semanal com a equipe'), 'ação na pauta da mentoria');
   await p.click('.topo [data-acao="encontro"]'); await p.fill('#en-tit', 'Delegação'); await p.fill('#en-d', '2030-01-10'); await salvarModal();
-  await ir('ensino'); await p.click('.topo [data-acao="mensagem"]'); await p.fill('#ms-t', 'Delegar não é perder o controle'); await salvarModal();
+  await ir('ensino'); await p.click('.topo [data-acao="mensagem"]'); await p.fill('#ms-t', 'Delegar não é perder o controle');
+  // Áudio de 1,5 MB (como uma gravação de uns 6 minutos), sem Cloudinary: vai para o banco em 3 pedaços.
+  await p.evaluate(() => { Gravador.blob = new Blob([new Uint8Array(1500000).map((_, i) => i % 251)], { type: 'audio/webm' }); Gravador.seg = 370; });
+  await salvarModal(); await espera(1500);
+  ok(await p.evaluate(() => /^firestore:.+:3$/.test(C.mensagens[0].audio)), 'mensagem com áudio publicada sem Cloudinary (guardada no banco)');
   await p.click('button[data-acao="pergunta"]'); await p.fill('#pq-t', 'O que você vai delegar?'); await salvarModal();
   await p.click('[data-acao="aula"][data-id="a12"]'); await p.fill('#au-v', 'https://youtu.be/dQw4w9WgXcQ'); await salvarModal();
   ok(await p.evaluate(() => C.mensagens.length === 1 && C.perguntas.length === 1 && C.itens.a12.video), 'coach publica mensagem, pergunta e vídeo');
@@ -147,6 +151,8 @@ async function definirSenha(email, senha) {
   console.log('\n== coachee de novo ==');
   await entrar('ana@teste.com', 'Ana12345!');
   ok((await texto()).includes('Delegar não é perder o controle'), 'coachee vê a mensagem da semana');
+  await p.click('[data-acao="ouvir-fs"]'); await espera(1500);
+  ok(await p.evaluate(async () => { const a = document.querySelector('audio[data-msg]'); return !!a && (await (await fetch(a.src)).blob()).size === 1500000; }), 'coachee ouve o áudio da mensagem no Hoje');
   await p.fill('#pergunta-resp', 'O relatório mensal.'); await p.click('#form-pergunta button'); await espera(800);
   await ir('item', 'e3'); ok((await texto()).includes('Meta clara. Vamos juntos.'), 'coachee vê o comentário do coach');
   await ir('item', 'a12'); ok(!!(await p.$('.video iframe')), 'aula com vídeo do YouTube dentro da plataforma');

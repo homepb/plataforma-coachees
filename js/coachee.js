@@ -79,9 +79,9 @@ function mapa() {
 function mensagemSemana() {
   const m = C.mensagens[0];
   if (!m) return `<div class="card"><h3>Mensagem da semana</h3><p class="mu" style="margin:0">A primeira mensagem de ${esc(nomeCoach())} chega em breve.</p></div>`;
-  const audio = urlSegura(m.audio);
+  const player = playerAudio(m);
   return `<div class="card"><h3>Mensagem da semana de ${esc(nomeCoach())} <span class="mu acao num" style="font-size:12px;font-weight:500">para toda a turma · ${brc(m.data)}</span></h3>
-    ${audio ? `<audio controls preload="none" src="${esc(audio)}" data-msg="${esc(m.id)}"></audio>` : '<p class="mu" style="margin:0;font-size:12.5px">Áudio ainda não anexado.</p>'}
+    ${player || '<p class="mu" style="margin:0;font-size:12.5px">Mensagem sem áudio.</p>'}
     <b style="display:block;margin-top:10px">${esc(m.titulo)}</b><p class="mu" style="margin:4px 0 0;font-size:13px">${esc(m.texto)}</p></div>`;
 }
 

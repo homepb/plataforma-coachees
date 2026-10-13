@@ -308,7 +308,7 @@ VIEWS.coach.ensino = () => {
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt bt-linha" data-acao="mensagem">+ Mensagem da semana</button><button class="bt bt-ouro" data-acao="aula">+ Nova aula</button></div></div>
   <div class="grade g2" style="margin-bottom:16px">
     <div class="card"><h3>Mensagem da semana <span class="chip ouro acao">vai para todos</span></h3>
-      ${m ? `${urlSegura(m.audio) ? `<audio controls preload="none" src="${esc(m.audio)}"></audio>` : '<p class="mu" style="font-size:12.5px;margin:0">Sem áudio anexado.</p>'}
+      ${m ? `${playerAudio(m) || '<p class="mu" style="font-size:12.5px;margin:0">Sem áudio anexado.</p>'}
       <b style="display:block;margin-top:10px">${esc(m.titulo)}</b><p class="mu" style="margin:4px 0 6px;font-size:13px">${esc(m.texto)}</p>
       <small class="mu num">Publicada em ${brc(m.data)} · ouvida por ${ouvida(m.id)} de ${total} da sua carteira</small>` : '<p class="mu">Nenhuma mensagem publicada ainda.</p>'}
       ${C.mensagens.length > 1 ? `<div class="sep"></div><div class="rotulinho" style="margin-bottom:4px">Mensagens anteriores</div>
@@ -347,7 +347,9 @@ Object.assign(ACOES, {
     if (Gravador.rec && Gravador.rec.state === 'recording') { Gravador.rec.stop(); return; }
     if (!navigator.mediaDevices || !window.MediaRecorder) { toast('Este navegador não grava áudio. Envie um arquivo.'); return; }
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    Gravador.partes = []; Gravador.rec = new MediaRecorder(stream); Gravador.inicio = Date.now();
+    // 32 kbps: voz clara e arquivo pequeno (cerca de 240 KB por minuto).
+    Gravador.partes = []; try { Gravador.rec = new MediaRecorder(stream, { audioBitsPerSecond: 32000 }); } catch (e) { Gravador.rec = new MediaRecorder(stream); }
+    Gravador.inicio = Date.now();
     Gravador.rec.ondataavailable = e => Gravador.partes.push(e.data);
     Gravador.rec.onstop = () => {
       stream.getTracks().forEach(tr => tr.stop()); Gravador.seg = (Date.now() - Gravador.inicio) / 1000;
@@ -364,10 +366,15 @@ Object.assign(ACOES, {
     'Publicar para todos', async () => {
       const titulo = valor('ms-t'); if (!titulo) { $('#ms-t').focus(); toast('Dê um título para a mensagem.'); return false; }
       if (Gravador.rec && Gravador.rec.state === 'recording') { toast('Pare a gravação antes de publicar.'); return false; }
-      let audio = '';
-      if (Gravador.blob) { toast('Enviando o áudio…'); audio = await Dados.enviarArquivo(new File([Gravador.blob], 'mensagem.webm', { type: Gravador.blob.type || 'audio/webm' }), 'mensagens', C.cfg.cloudinary); }
-      const doc = { titulo, texto: valor('ms-x') || 'Ouça a mensagem desta semana.', audio, dur: Gravador.seg ? fmtDur(Gravador.seg) : '', data: hoje(), autorId: S.u.id };
-      const id = await col('mensagens').adicionar(doc); C.mensagens.unshift({ id, ...doc });
+      const blob = Gravador.blob; const cloud = C.cfg.cloudinary || {};
+      // Com Cloudinary, o áudio vai para lá; sem ele, fica guardado no próprio banco (limite de 5 MB).
+      const noBanco = blob && !Dados.demo && !(cloud.nome && cloud.preset);
+      if (noBanco && blob.size > AUDIO_MAX) { toast('O áudio passou de 5 MB. Grave uma mensagem mais curta (até uns 10 minutos) ou envie um arquivo menor.'); return false; }
+      const doc = { titulo, texto: valor('ms-x') || 'Ouça a mensagem desta semana.', audio: '', dur: Gravador.seg ? fmtDur(Gravador.seg) : '', data: hoje(), autorId: S.u.id };
+      if (blob && !noBanco) doc.audio = await Dados.enviarArquivo(new File([blob], 'mensagem.webm', { type: blob.type || 'audio/webm' }), 'mensagens', cloud);
+      const id = await col('mensagens').adicionar(doc);
+      if (noBanco) { doc.audio = await guardarAudio(blob, id); await col('mensagens').salvar(id, { audio: doc.audio }); }
+      C.mensagens.unshift({ id, ...doc });
       toast('Mensagem publicada. Ela já aparece no "Hoje" de todos os coachees.'); render();
     });
   },

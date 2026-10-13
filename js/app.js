@@ -76,6 +76,42 @@ function abrirModal(titulo, corpo, botao, aoSalvar, opcoes = {}) {
 const confirmar = (titulo, texto, botao, fn) => abrirModal(titulo, `<p style="margin:0">${texto}</p>`, botao, fn);
 const valor = id => { const c = document.getElementById(id); return c ? c.value.trim() : ''; };
 
+/* ===================== Áudio guardado no banco ===================== */
+// Sem Cloudinary, o áudio da mensagem da semana fica no próprio Firestore, em pedaços de até 700 mil
+// caracteres (cada documento aceita até 1 MB). A mensagem guarda a referência "firestore:<id>:<pedaços>".
+const AUDIO_FS = 'firestore:';
+const AUDIO_MAX = 5e6;
+const audiosCache = {};
+const blobBase64 = b => new Promise((ok, erro) => { const l = new FileReader(); l.onload = () => ok(String(l.result).split(',')[1]); l.onerror = erro; l.readAsDataURL(b); });
+async function guardarAudio(blob, id) {
+  const b64 = await blobBase64(blob); const T = 700000; const n = Math.ceil(b64.length / T);
+  for (let i = 0; i < n; i++) await col('audios').salvar(`${id}_${i}`, { msgId: id, i, n, tipo: blob.type || 'audio/webm', parte: b64.slice(i * T, (i + 1) * T) });
+  return `${AUDIO_FS}${id}:${n}`;
+}
+// Player da mensagem: link direto (Cloudinary ou demonstração) ou botão que monta o áudio guardado no banco.
+function playerAudio(m) {
+  const a = String(m.audio || '');
+  if (a.startsWith(AUDIO_FS)) return `<button class="bt bt-linha" data-acao="ouvir-fs" data-ref="${esc(a)}" data-msg="${esc(m.id)}">▶ Ouvir a mensagem${m.dur ? ` · ${esc(m.dur)}` : ''}</button>`;
+  const u = urlSegura(a);
+  return u ? `<audio controls preload="none" src="${esc(u)}" data-msg="${esc(m.id)}"></audio>` : '';
+}
+ACOES['ouvir-fs'] = async t => {
+  const [id, n] = t.dataset.ref.slice(AUDIO_FS.length).split(':');
+  t.disabled = true; t.textContent = 'Carregando o áudio…';
+  try {
+    if (!audiosCache[id]) {
+      const partes = await Promise.all(Array.from({ length: +n }, (_, i) => col('audios').obter(`${id}_${i}`)));
+      if (partes.some(p => !p)) throw new Error('O áudio desta mensagem não foi encontrado.');
+      const bin = atob(partes.map(p => p.parte).join('')); const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      audiosCache[id] = URL.createObjectURL(new Blob([bytes], { type: partes[0].tipo }));
+    }
+    const a = document.createElement('audio'); a.controls = true; a.src = audiosCache[id]; a.dataset.msg = t.dataset.msg;
+    if (S.modo === 'coachee' && typeof marcarOuvida === 'function') a.onplay = () => marcarOuvida(t.dataset.msg);
+    t.replaceWith(a); a.play().catch(() => {});
+  } catch (e) { t.disabled = false; t.textContent = '▶ Ouvir a mensagem'; throw e; }
+};
+
 /* ===================== Carregamento ===================== */
 const col = n => Dados.col(n);
 const porId = (lista) => Object.fromEntries(lista.map(x => [x.id, x]));

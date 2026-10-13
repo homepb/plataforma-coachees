@@ -147,6 +147,13 @@ test('só o administrador exclui cadastros, e nunca o próprio', async () => {
   await assertSucceeds(db('admin').doc('usuarios/apagar').delete());
 });
 
+test('áudio da mensagem: equipe grava, todos os logados ouvem', async () => {
+  await assertSucceeds(db('vini').doc('audios/m1_0').set({ msgId: 'm1', i: 0, n: 1, parte: 'AAAA' }));
+  await assertSucceeds(db('ana').doc('audios/m1_0').get());
+  await assertFails(db('ana').doc('audios/m1_1').set({ msgId: 'm1', i: 1, n: 2, parte: 'BBBB' }));
+  await assertFails(env.unauthenticatedContext().firestore().doc('audios/m1_0').get());
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));
