@@ -49,6 +49,8 @@ const Dados = (() => {
   function firebaseDados(cfg) {
     firebase.initializeApp(cfg);
     const auth = firebase.auth();
+    // E-mails de senha e a página do link em português do Brasil.
+    auth.languageCode = 'pt-BR';
     const fs = firebase.firestore();
     // Testes locais com o Firebase Emulator Suite (window.FIREBASE_EMULADOR = true em config.js).
     const emulador = app => { if (window.FIREBASE_EMULADOR) app.auth().useEmulator('http://127.0.0.1:9099', { disableWarnings: true }); };
@@ -69,6 +71,19 @@ const Dados = (() => {
       adicionar: async dados => (await fs.collection(nome).add(dados)).id,
       remover: id => fs.collection(nome).doc(id).delete()
     });
+
+    // E-mail para criar ou trocar a senha. Depois de salvar a senha, o botão "Continuar" leva de volta
+    // para a tela de login da plataforma. Isso exige o domínio do site em Authentication → Domínios autorizados;
+    // se ele ainda não estiver lá, o e-mail sai mesmo assim, só sem o botão de volta.
+    async function enviarLinkSenha(email) {
+      const url = location.origin + location.pathname.replace(/index\.html$/, '');
+      try { await auth.sendPasswordResetEmail(email.trim(), { url }); }
+      catch (e) {
+        if (!/continue-uri|unauthorized-domain/.test(e.code || '')) throw e;
+        console.warn('Domínio não autorizado para o link de volta:', location.hostname);
+        await auth.sendPasswordResetEmail(email.trim());
+      }
+    }
 
     const traduzir = e => {
       const m = {
@@ -95,18 +110,18 @@ const Dados = (() => {
         try { await auth.signInWithEmailAndPassword(email.trim(), senha); } catch (e) { throw traduzir(e); }
       },
       sair: () => auth.signOut(),
-      async redefinirSenha(email) { try { await auth.sendPasswordResetEmail(email.trim()); } catch (e) { throw traduzir(e); } },
+      async redefinirSenha(email) { try { await enviarLinkSenha(email); } catch (e) { throw traduzir(e); } },
       // Cria o login numa instância secundária (para não derrubar a sessão de quem cadastra)
       // e envia o e-mail do Firebase para a pessoa criar a própria senha (RF-02).
       async criarAcesso(dados) {
         let sec = firebase.apps.find(a => a.name === 'secundario');
-        if (!sec) { sec = firebase.initializeApp(cfg, 'secundario'); emulador(sec); }
+        if (!sec) { sec = firebase.initializeApp(cfg, 'secundario'); sec.auth().languageCode = 'pt-BR'; emulador(sec); }
         const senhaTemp = Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(36)).join('-') + 'Aa1!';
         let cred;
         try { cred = await sec.auth().createUserWithEmailAndPassword(dados.email.trim(), senhaTemp); } catch (e) { throw traduzir(e); }
         await sec.auth().signOut();
         await col('usuarios').salvar(cred.user.uid, { ...dados, email: dados.email.trim().toLowerCase() });
-        await auth.sendPasswordResetEmail(dados.email.trim());
+        await enviarLinkSenha(dados.email);
         return cred.user.uid;
       }
     };

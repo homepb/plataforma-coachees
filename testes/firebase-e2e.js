@@ -82,6 +82,10 @@ async function definirSenha(email, senha) {
   await p.click('[data-acao="confirmar-venda"]'); await salvarModal(); await espera(800); await confirmacao();
   ok(await p.evaluate(() => C.vendas[0].status === 'pago' && C.usuarios.some(u => u.email === 'rafael@teste.com')), 'confirmar pagamento cria o acesso do cliente');
 
+  const links = (await (await fetch(`http://127.0.0.1:9099/emulator/v1/projects/${PROJ}/oobCodes`)).json()).oobCodes;
+  const link = links.find(o => o.email === 'ana@teste.com').oobLink;
+  // O emulador sempre gera lang=en; o idioma é conferido na configuração do login.
+  ok(/continueUrl=http%3A%2F%2Flocalhost%3A5055%2F/.test(link) && await p.evaluate(() => firebase.auth().languageCode === 'pt-BR'), 'e-mail de senha em português e com volta para a tela de login');
   ok(await definirSenha('ana@teste.com', 'Ana12345!'), 'coachee cria a senha pelo link do e-mail');
   ok(await definirSenha('vinicius@teste.com', 'Vini1234!'), 'coach cria a senha pelo link do e-mail');
 
