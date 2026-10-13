@@ -56,7 +56,15 @@ function toast(msg, tipo, detalhe = '') {
   requestAnimationFrame(() => t.classList.add('on'));
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), tipo === 'ok' && !detalhe ? 5000 : 9000);
 }
-const falha = e => { console.error(e); toast(e && e.message ? e.message : 'Algo deu errado. Tente de novo.', 'erro'); };
+// Erros do Firebase em inglês viram uma explicação em português.
+function mensagemErro(e) {
+  const cod = (e && e.code) || ''; const msg = (e && e.message) || '';
+  if (cod === 'permission-denied' || /insufficient permissions/i.test(msg))
+    return 'Sem permissão para esta ação no banco de dados. Se a plataforma acabou de ganhar uma função nova, o administrador precisa publicar as regras atualizadas do Firebase (Firestore → Regras → Publicar).';
+  if (cod === 'unavailable' || /offline|network/i.test(msg)) return 'Sem conexão com o banco de dados. Confira a internet e tente de novo.';
+  return msg || 'Algo deu errado. Tente de novo.';
+}
+const falha = e => { console.error(e); toast(mensagemErro(e), 'erro'); };
 // Ao fechar a janela, o aviso volta para a página e continua visível.
 $('#modal').addEventListener('close', () => document.body.appendChild($('#toast')));
 
@@ -184,10 +192,14 @@ async function carregarConteudo() {
 }
 
 // Tudo o que é de um coachee (usado pelo próprio coachee e pelo coach responsável).
+// Leitura de um recurso novo: se as regras do banco ainda não foram atualizadas (permissão negada),
+// a plataforma segue funcionando sem ele, em vez de travar o carregamento inteiro.
+const opcional = (promessa, padrao = []) => promessa.catch(e => { console.warn('Leitura opcional indisponível:', e && e.message); return padrao; });
+
 async function carregarCoachee(id) {
   const q = n => col(n).listar('coacheeId', id);
-  const [progresso, acoes, rotinas, assessments, vitorias, paradas, comentarios, respostas, insig] = await Promise.all([
-    q('progresso'), q('acoes'), q('rotinas'), q('assessments'), q('vitorias'), q('paradas'), q('comentarios'), q('respostas'), col('insignias').obter(id)]);
+  const [progresso, acoes, rotinas, assessments, vitorias, paradas, comentarios, respostas, insig, relatorios] = await Promise.all([
+    q('progresso'), q('acoes'), q('rotinas'), q('assessments'), q('vitorias'), q('paradas'), q('comentarios'), q('respostas'), col('insignias').obter(id), opcional(q('relatorios'))]);
   return {
     progresso: Object.fromEntries(progresso.map(p => [p.itemId, p])),
     acoes: acoes.sort((a, b) => (a.ok - b.ok) || (a.prazo || '').localeCompare(b.prazo || '')),
@@ -195,7 +207,9 @@ async function carregarCoachee(id) {
     paradas: Object.fromEntries(paradas.map(p => [p.n, p])),
     comentarios: Object.fromEntries(comentarios.map(c => [c.alvo, c])),
     respostas: Object.fromEntries(respostas.map(r => [r.perguntaId, r])),
-    insignias: insig || { ganhas: {} }
+    insignias: insig || { ganhas: {} },
+    // PDFs dos resultados dos assessments, enviados pelo coach (o mais recente primeiro).
+    relatorios: relatorios.sort((a, b) => (b.criado || b.data || '').localeCompare(a.criado || a.data || ''))
   };
 }
 
@@ -212,9 +226,9 @@ async function carregar() {
     C.ouvidas = new Set((await col('ouvidas').listar('coacheeId', u.id)).map(o => o.msgId));
     C.pedidos = (await col('pedidos').listar('coacheeId', u.id)).sort(recente);
     C.inscrito = !!(await col('inscricoes').obter(u.id));
-    C.horarios = u.coachId ? await col('horarios').listar('coachId', u.coachId) : [];
+    C.horarios = u.coachId ? await opcional(col('horarios').listar('coachId', u.coachId)) : [];
   }
-  if (modo === 'coach') { await carregarCarteira(); C.horarios = await col('horarios').listar('coachId', u.id); }
+  if (modo === 'coach') { await carregarCarteira(); C.horarios = await opcional(col('horarios').listar('coachId', u.id)); }
   if (modo === 'admin') {
     const [usuarios, vendas, pedidos] = await Promise.all([col('usuarios').listar(), col('vendas').listar(), col('pedidos').listar()]);
     C.usuarios = usuarios; C.vendas = vendas.sort(recente); C.pedidos = pedidos.sort(recente);

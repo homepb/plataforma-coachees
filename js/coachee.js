@@ -390,7 +390,15 @@ MUDA.foto = async t => {
 };
 
 /* ===================== Quem eu sou (RF-24, RF-28) ===================== */
-function cartaoAssess(k, D, paraCoach, Pp) {
+// PDF do resultado do assessment: o coach envia; o coachee só abre.
+const pdfAssess = (D, k) => (D.relatorios || []).find(r => r.tipo === k);
+function blocoPdfAssess(k, D, paraCoach, cid) {
+  const r = pdfAssess(D, k);
+  const ver = r ? botaoMaterial({ url: r.arquivo }, 'Ver PDF do resultado') : '';
+  if (!paraCoach) return r ? `<div class="pdf-assess">${ver}<small class="mu">enviado por ${esc(nomeCoach())} em ${brc(r.data)}</small></div>` : '';
+  return `<div class="pdf-assess">${ver}<button class="bt ${r ? 'bt-fantasma' : 'bt-linha'} bt-sm" data-acao="anexar-pdf-assess" data-c="${esc(cid)}" data-k="${k}">${r ? 'Trocar PDF' : 'Anexar PDF do resultado'}</button>${r ? `<small class="mu">enviado em ${brc(r.data)}</small>` : ''}</div>`;
+}
+function cartaoAssess(k, D, paraCoach, Pp, cid = '') {
   const A = CONTEUDO.ASSESS[k]; const hs = R.historico(D, k); const u = hs[hs.length - 1]; const ant = hs[hs.length - 2];
   const lib = R.liberado(D, k, Pp); const pp = R.proximaParada(Pp);
   const DISC = CONTEUDO.DISC;
@@ -413,8 +421,7 @@ function cartaoAssess(k, D, paraCoach, Pp) {
   return `<div class="card ${lib && !paraCoach ? 'ouro' : ''}"><h3>${esc(A.nome)} ${chip}</h3>
     ${u ? `${titulo}${ant ? `<div class="comp-leg" style="margin:6px 0 8px"><span><i class="antes"></i>${br(ant.data)}</span><span><i class="depois"></i>${br(u.data)}</span></div>` : ''}<div class="disc" style="margin-top:8px">${linhas}</div>` : `<p class="mu" style="margin:0 0 10px">${esc(A.desc)}</p>`}
     ${ord && !paraCoach ? `<div class="sep"></div><div class="rotulinho" style="margin-bottom:4px">Leitura guiada</div><p style="margin:0 0 4px;font-size:13px">${esc(DISC[ord[0][0]][1])} ${esc(DISC[ord[0][0]][2])}</p>` : ''}
-    ${u && u.arquivo ? `<div style="margin-top:12px">${botaoMaterial({ url: u.arquivo }, k === 'disc' ? 'Ver relatório do NBM (arquivo)' : 'Ver arquivo do relatório')}</div>`
-      : u && k === 'disc' && !paraCoach ? '<div style="margin-top:12px"><button class="link-discreto" data-acao="anexar-relatorio" style="color:var(--gold-2)">Anexar o PDF do relatório do NBM</button></div>' : ''}
+    ${blocoPdfAssess(k, D, paraCoach, cid)}
     <div class="sep"></div><small class="mu num">${hs.length ? `Feito em ${hs.map(x => brc(x.data)).join(' · ')}` : 'Ainda não feito'}</small>
     ${acao ? `<div style="margin-top:10px;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center">${acao}</div>` : ''}</div>`;
 }
@@ -448,13 +455,8 @@ VIEWS.coachee.questionario = () => {
 };
 MUDA.quest = t => { S.resp[t.name.slice(1)] = +t.value; const q = CONTEUDO.QUEST[S.p]; $('#quest-cont').textContent = `${Object.keys(S.resp).length} de ${q.perguntas.length} respondidas`; };
 
-// Relatório gerado fora da plataforma (ex.: PDF do NBM): Cloudinary, se houver; senão fica no próprio banco (até 5 MB).
-async function enviarRelatorio(f) {
-  const cloud = C.cfg.cloudinary || {};
-  return !Dados.demo && !(cloud.nome && cloud.preset) ? guardarArquivo(f) : Dados.enviarArquivo(f, 'assessments', cloud);
-}
-async function registrarAssessment(tipo, r, extra = {}) {
-  const doc = { coacheeId: S.u.id, tipo, data: hoje(), criado: new Date().toISOString(), r, ...extra };
+async function registrarAssessment(tipo, r) {
+  const doc = { coacheeId: S.u.id, tipo, data: hoje(), criado: new Date().toISOString(), r };
   const id = await col('assessments').adicionar(doc); C.D.assessments.push({ id, ...doc });
 }
 FORMS['form-quest'] = async f => {
@@ -467,24 +469,13 @@ FORMS['form-quest'] = async f => {
 };
 ACOES['registrar-disc'] = () => {
   const DISC = CONTEUDO.DISC;
-  abrirModal('Registrar resultado do DISC', `<p class="mu" style="margin:0 0 12px;font-size:13px">Copie as porcentagens do relatório do NBM.</p><div class="duas">${['D', 'I', 'S', 'C'].map(x => `<div><label class="rotulo" for="dc-${x}">${DISC[x][0]} (%)</label><input class="campo num" id="dc-${x}" type="number" min="0" max="100"></div>`).join('')}</div>
-    <label class="rotulo" for="dc-arq">PDF do relatório do NBM (opcional, até 5 MB)</label><input class="campo" id="dc-arq" type="file" accept="application/pdf,image/*">`, 'Registrar', async () => {
+  abrirModal('Registrar resultado do DISC', `<p class="mu" style="margin:0 0 12px;font-size:13px">Copie as porcentagens do relatório do NBM.</p><div class="duas">${['D', 'I', 'S', 'C'].map(x => `<div><label class="rotulo" for="dc-${x}">${DISC[x][0]} (%)</label><input class="campo num" id="dc-${x}" type="number" min="0" max="100"></div>`).join('')}</div>`, 'Registrar', async () => {
     const r = {};
     for (const x of ['D', 'I', 'S', 'C']) { const v = valor('dc-' + x); const n = Number(v); if (v === '' || isNaN(n) || n < 0 || n > 100) { toast('Use valores de 0 a 100.'); return false; } r[x] = n; }
-    const f = $('#dc-arq').files[0]; const extra = f ? { arquivo: await enviarRelatorio(f) } : {};
-    await registrarAssessment('disc', r, extra); toast(f ? 'Resultado e relatório do DISC registrados.' : 'Resultado do DISC registrado.'); render();
+    await registrarAssessment('disc', r); toast('Resultado do DISC registrado.'); render();
   });
 };
 
-ACOES['anexar-relatorio'] = () => {
-  const u = R.historico(C.D, 'disc').pop(); if (!u) return;
-  abrirModal('Anexar o relatório do DISC', `<p class="mu" style="margin:0 0 12px;font-size:13px">Envie o PDF que o NBM gerou para o seu teste de ${br(u.data)}. Você e o seu coach poderão abri-lo aqui.</p>
-    <label class="rotulo" for="ax-arq">PDF do relatório (até 5 MB)</label><input class="campo" id="ax-arq" type="file" accept="application/pdf,image/*">`, 'Anexar', async () => {
-    const f = $('#ax-arq').files[0]; if (!f) { toast('Escolha o arquivo do relatório.'); return false; }
-    const arquivo = await enviarRelatorio(f); await col('assessments').salvar(u.id, { arquivo }); u.arquivo = arquivo;
-    toast('Relatório anexado.'); render();
-  });
-};
 
 /* ----- Relatório dos assessments (gerado pela plataforma, para ver e salvar em PDF) ----- */
 VIEWS.coachee.relatorio = () => {
@@ -498,7 +489,7 @@ VIEWS.coachee.relatorio = () => {
       ${ord ? `<p><b>Perfil predominante:</b> ${esc(DISC[ord[0][0]][0])}, com ${esc(DISC[ord[1][0]][0])}. ${esc(DISC[ord[0][0]][1])} ${esc(DISC[ord[0][0]][2])}</p>` : ''}
       <table class="rel-tab"><thead><tr><th>Dimensão</th>${hs.map(x => `<th class="num">${br(x.data)}</th>`).join('')}${hs.length > 1 ? '<th class="num">Variação</th>' : ''}</tr></thead>
       <tbody>${dims.map(d => { const v0 = hs[0].r[d], v1 = u.r[d]; return `<tr><td>${esc(nome(d))}</td>${hs.map(x => `<td class="num">${x.r[d] ?? '—'}%</td>`).join('')}${hs.length > 1 ? `<td class="num">${v1 - v0 > 0 ? '+' : ''}${v1 - v0} pts</td>` : ''}</tr>`; }).join('')}</tbody></table>
-      ${u.arquivo ? `<p class="nao-imprimir" style="margin-top:8px">${botaoMaterial({ url: u.arquivo }, 'Abrir o arquivo do NBM')}</p>` : ''}</section>`;
+      ${pdfAssess(D, k) ? `<p class="nao-imprimir" style="margin-top:8px">${botaoMaterial({ url: pdfAssess(D, k).arquivo }, 'Ver PDF do resultado')}</p>` : ''}</section>`;
   }).join('');
   return `<div class="topo"><div><div class="sobre">Quem eu sou</div><h1>Relatório dos assessments</h1></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt bt-ouro" data-acao="imprimir-relatorio">Salvar em PDF</button><button class="bt bt-linha" data-ir="quem">← Quem eu sou</button></div></div>

@@ -145,6 +145,9 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     for (const a of ['geral', 'acao', 'evolucao', 'assess', 'respostas']) { await p.click(`[data-aba="${a}"]`); await p.waitForTimeout(120); ok(!(await texto()).includes('Não foi possível'), `ficha: aba ${a}`); }
     await p.click('[data-acao="comentar"][data-alvo="a31"]'); await p.fill('#cm-t', 'Ótimo começo, Ana.'); await modalSalvar();
     ok(await p.evaluate(() => daCarteira('ana').D.comentarios.a31.texto === 'Ótimo começo, Ana.'), 'coach comenta a resposta');
+    await ir('ficha', 'ana'); await p.click('[data-aba="assess"]'); await p.waitForTimeout(150);
+    await p.click('[data-acao="anexar-pdf-assess"][data-k="ie"]'); await p.setInputFiles('#pa-arq', { name: 'ie-ana.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 teste') }); await modalSalvar(); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => daCarteira('ana').D.relatorios[0].tipo === 'ie') && !!(await p.$('.pdf-assess [data-acao="abrir-arquivo"], .pdf-assess a')), 'coach anexa o PDF da inteligência emocional na ficha');
     await ir('agenda'); ok((await texto()).includes('reservado') && (await texto()).includes('Preparar a conversa com a diretoria'), 'coach vê na agenda o horário reservado e o assunto');
     const antes = await p.evaluate(() => C.horarios.length);
     await p.fill('#hr-h', '9h, 15:30'); await p.selectOption('#hr-r', '2'); await p.click('#form-horario button[type=submit]'); await p.waitForTimeout(300);

@@ -159,6 +159,11 @@ async function definirSenha(email, senha) {
   ok(await p.evaluate(() => /^arquivo:.+:3:manual-delega/.test(C.materiais[0].url)), 'material com PDF guardado no banco');
   await ir('agenda'); await p.fill('#hr-h', '10:00'); await p.click('#form-horario button[type=submit]'); await espera(1200);
   ok(await p.evaluate(() => C.horarios.length === 1 && C.horarios[0].status === 'livre'), 'coach abre horário na agenda (regra aceita)');
+  // PDF do resultado do DISC: o coach anexa na ficha; a coachee só abre.
+  await ir('ficha', await p.evaluate(() => C.carteira.find(c => c.u.email === 'ana@teste.com').u.id)); await p.click('[data-aba="assess"]'); await espera(300);
+  await p.click('[data-acao="anexar-pdf-assess"][data-k="disc"]');
+  await p.setInputFiles('#pa-arq', { name: 'disc-ana.pdf', mimeType: 'application/pdf', buffer: Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(30000, 66)]) }); await salvarModal(); await espera(1500);
+  ok(await p.evaluate(() => C.carteira.find(c => c.u.email === 'ana@teste.com').D.relatorios[0].tipo === 'disc'), 'coach anexa o PDF do DISC da coachee (regra aceita)');
 
   console.log('\n== coachee de novo ==');
   await entrar('ana@teste.com', 'Ana12345!');
@@ -170,6 +175,7 @@ async function definirSenha(email, senha) {
   // O navegador de teste (sem tela) não mostra PDF; basta conferir que a aba abriu e que o arquivo veio inteiro.
   ok(!!aba && await p.evaluate(async () => { const u = Object.values(arquivosCache)[0]; const b = u && await (await fetch(u)).blob(); return !!b && b.size === 1200009 && b.type === 'application/pdf'; }), 'coachee abre o PDF da biblioteca (arquivo inteiro, em nova aba)');
   await aba.close();
+  await ir('quem'); ok(!!(await p.$('.pdf-assess [data-acao="abrir-arquivo"]')) && !(await p.$('[data-acao="anexar-pdf-assess"]')), 'coachee vê o PDF do DISC e não tem opção de anexar');
   await ir('sessao'); await p.click('.agenda-dia .hora'); await p.fill('#ss-m', 'Montar a conversa com a diretoria'); await p.click('#form-sessao button[type=submit]'); await espera(1500);
   ok(await p.evaluate(() => C.horarios[0].status === 'reservado' && C.pedidos.some(x => x.horarioId === C.horarios[0].id)), 'coachee reserva o horário do coach (regra aceita)');
   await ir('painel');
