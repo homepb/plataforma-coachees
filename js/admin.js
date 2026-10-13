@@ -313,7 +313,7 @@ VIEWS.admin.ajustes = () => {
   <div class="grade g2">
     <div class="card"><h3>Programa e links</h3>
       ${campo('aj-nome', 'Nome do programa', c.nome, 'Programa de Alta Performance')}
-      ${campo('aj-wa', 'Convite do grupo no WhatsApp', c.whatsapp, 'https://chat.whatsapp.com/…')}
+      ${campo('aj-wa', 'Convite do Grupo Mentoria (WhatsApp)', c.whatsapp, 'https://chat.whatsapp.com/…')}
       ${campo('aj-disc', 'Link do teste DISC (NBM)', c.disc, 'https://…')}
       ${campo('aj-sala', 'Sala padrão da mentoria em grupo', c.sala, 'https://meet.google.com/…')}
       ${campo('aj-avisos', 'E-mail para avisos de novos coachees', c.emailAvisos, 'email@exemplo.com', 'email')}</div>

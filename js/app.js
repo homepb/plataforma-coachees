@@ -255,7 +255,7 @@ const IC = {
 const svg = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const PAPEL = { coachee: 'Coachee · Plano Master', coach: 'Coach', admin: 'Administrador' };
 const nomePrograma = () => C.cfg.nome || 'Programa de Alta Performance';
-const botaoWhats = (cls = '') => C.cfg.whatsapp ? `<a class="bt bt-wa ${cls}" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">Falar no grupo do WhatsApp</a>` : '';
+const botaoWhats = (cls = '') => C.cfg.whatsapp ? `<a class="bt bt-wa ${cls}" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">Falar no Grupo Mentoria</a>` : '';
 
 function ir(view, p = null) {
   S.view = view; S.p = p; S.busca = ''; S.filtro = 'todos';

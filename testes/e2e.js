@@ -51,6 +51,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       const titulos = [...lista.querySelectorAll('.item .tx b')].map(b => b.textContent);
       return prox.length > 1 && prox.every((d, i) => !i || prox[i - 1] <= d) && JSON.stringify(titulos) === JSON.stringify(esperado) && lista.textContent.indexOf('Próximos') < lista.textContent.indexOf('Já aconteceram');
     }), 'encontros do mais próximo para o mais distante, depois os passados');
+    ok(!!(await p.$('#grupo-mentoria a.bt-wa[href^="https://chat.whatsapp.com"]')) && (await p.textContent('#grupo-mentoria')).includes('Falar no Grupo Mentoria'), 'Comunidade tem o botão do Grupo Mentoria no WhatsApp');
     for (const v of ['painel', 'jornada', 'quem', 'evolucao', 'pratica', 'comunidade']) {
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coachee: ${v} abre`);
       if (nome === 'celular') ok(!(await transborda()), `coachee: ${v} sem rolagem lateral`);

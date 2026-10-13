@@ -619,16 +619,22 @@ VIEWS.coachee.comunidade = () => {
   const forns = C.fornecedores.filter(f => !q || [f.titulo, f.area, f.descricao].join(' ').toLowerCase().includes(q));
   const inscrito = C.inscrito;
   return `
-  <div class="topo"><div><div class="sobre">Aprender junto</div><h1>Comunidade</h1><div class="sub">Encontros em grupo, materiais, evento anual e a rede do programa.</div></div>${botaoWhats()}</div>
+  <div class="topo"><div><div class="sobre">Aprender junto</div><h1>Comunidade</h1><div class="sub">Encontros em grupo, materiais, evento anual e a rede do programa.</div></div></div>
   ${pe ? `<div class="card ouro" style="margin-bottom:16px;display:flex;gap:18px;align-items:center;flex-wrap:wrap">${caixaData(pe.data)}<div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Próxima ${pe.tipo === 'convidado' ? 'aula com convidado' : 'mentoria em grupo'}</div><div style="font-family:var(--f-display);font-size:26px;font-weight:600">${esc(pe.titulo)}</div><div class="mu">${br(pe.data)} às ${esc(pe.hora || '')}</div></div>${urlSegura(pe.link) ? `<a class="bt bt-ouro" href="${esc(pe.link)}" target="_blank" rel="noopener">Entrar na sala</a>` : ''}</div>` : ''}
   <div class="grade g-21" style="margin-bottom:16px">
     <div class="card"><h3>Encontros e gravações</h3><div class="lista">
       ${listaEncontros(e => `<div class="item">${caixaData(e.data)}<div class="tx"><b>${esc(e.titulo)}</b><small>${e.tipo === 'convidado' ? 'Aula com convidado' : 'Mentoria em grupo'} · ${esc(e.hora || '')}</small></div>${ytId(e.gravacao) ? `<button class="bt bt-linha bt-sm" data-acao="ver-gravacao" data-id="${e.id}">Ver gravação</button>` : e.data >= h ? '<span class="chip ouro">ao vivo</span>' : '<span class="chip">gravação em breve</span>'}</div>`)}
     </div></div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="card" id="grupo-mentoria"><h3>Grupo Mentoria</h3>
+      <p class="mu" style="margin:0 0 14px;font-size:13.5px">O grupo da turma no WhatsApp: avisos dos encontros, dúvidas e trocas com os outros coachees e com ${esc(nomeCoach())}.</p>
+      ${urlSegura(C.cfg.whatsapp) ? `<a class="bt bt-wa" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="margin-right:6px"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>Falar no Grupo Mentoria</a>`
+        : '<span class="mu" style="font-size:13px">O link do grupo ainda não foi cadastrado. Avise o seu coach.</span>'}</div>
     ${ev && ev.titulo ? `<div class="card ouro"><h3>Evento presencial anual</h3>
       <div style="font-family:var(--f-display);font-size:26px;font-weight:600;line-height:1.1">${esc(ev.titulo)}</div>
       <p class="mu" style="margin:6px 0 14px">${ev.data ? br(ev.data) : 'Data a confirmar'} · ${esc(ev.local || 'local a confirmar')}<br>${esc(ev.descricao || '')}</p>
       ${inscrito ? '<span class="chip ok">Inscrição feita</span>' : '<button class="bt bt-ouro" data-acao="inscricao">Fazer inscrição</button>'}</div>` : ''}
+    </div>
   </div>
   <div class="ferramentas"><div class="busca"><input class="campo" id="busca-mat" placeholder="Buscar materiais e fornecedores" value="${esc(S.buscaMat)}" aria-label="Buscar">${svg('busca')}</div></div>
   <div class="card" style="margin-bottom:16px"><h3>Manuais, e-books e ferramentas <span class="mu acao num" style="font-size:12px;font-weight:500">${plural(mats.length, 'item', 'itens')}</span></h3>
