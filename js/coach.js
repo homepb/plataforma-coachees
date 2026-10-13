@@ -333,9 +333,12 @@ VIEWS.coach.ensino = () => {
 };
 
 // Gravador de áudio do navegador (MediaRecorder): o coach grava sem instalar nada.
-const Gravador = { rec: null, partes: [], blob: null, inicio: 0, seg: 0 };
+// Limite de 20 minutos: a 32 kbps cabe nos 5 MB guardados no banco.
+const AUDIO_MAX_SEG = 20 * 60;
+const Gravador = { rec: null, partes: [], blob: null, inicio: 0, seg: 0, relogio: null };
 function htmlGravador() {
-  return `<span class="rotulo">Áudio</span><div class="gravador">
+  return `<span class="rotulo">Áudio <span class="mu" style="font-weight:500;text-transform:none;letter-spacing:0">· até 20 minutos</span></span>
+    <p class="aviso-audio" id="aviso-audio">⏱ O áudio pode ter no máximo <b>20 minutos</b>. A gravação para sozinha ao chegar em 20:00.</p><div class="gravador">
     <button type="button" class="bt bt-linha bt-sm" data-acao="gravar" id="bt-gravar">● Gravar agora</button>
     <label class="bt bt-fantasma bt-sm" for="arq-audio">Enviar arquivo de áudio</label><input type="file" accept="audio/*" id="arq-audio" data-muda="arq-audio" hidden>
     <span class="mu" id="estado-audio" style="font-size:12.5px"></span></div><div id="previa-audio"></div>`;
@@ -352,11 +355,19 @@ Object.assign(ACOES, {
     Gravador.inicio = Date.now();
     Gravador.rec.ondataavailable = e => Gravador.partes.push(e.data);
     Gravador.rec.onstop = () => {
-      stream.getTracks().forEach(tr => tr.stop()); Gravador.seg = (Date.now() - Gravador.inicio) / 1000;
+      clearInterval(Gravador.relogio); stream.getTracks().forEach(tr => tr.stop());
+      Gravador.seg = Math.min((Date.now() - Gravador.inicio) / 1000, AUDIO_MAX_SEG);
       previaAudio(new Blob(Gravador.partes, { type: Gravador.rec.mimeType || 'audio/webm' }));
-      t.textContent = '● Gravar de novo'; $('#estado-audio').textContent = `Gravado · ${fmtDur(Gravador.seg)}`;
+      t.textContent = '● Gravar de novo'; const est = $('#estado-audio'); if (!est) return;
+      est.textContent = Gravador.seg >= AUDIO_MAX_SEG - 1 ? `Gravado · 20:00 (parou no limite de 20 minutos)` : `Gravado · ${fmtDur(Gravador.seg)}`;
     };
-    Gravador.rec.start(); t.textContent = '■ Parar'; $('#estado-audio').innerHTML = '<span class="gravando">Gravando…</span>';
+    // Contador na tela e parada automática aos 20 minutos.
+    const tique = () => {
+      const s = (Date.now() - Gravador.inicio) / 1000, est = $('#estado-audio');
+      if (s >= AUDIO_MAX_SEG || !est) { if (Gravador.rec.state === 'recording') Gravador.rec.stop(); return; }
+      est.innerHTML = `<span class="gravando">Gravando… ${fmtDur(Math.floor(s))} / 20:00</span>${s >= AUDIO_MAX_SEG - 60 ? ' · falta menos de 1 minuto' : ''}`;
+    };
+    Gravador.rec.start(1000); t.textContent = '■ Parar'; tique(); Gravador.relogio = setInterval(tique, 500);
   },
   mensagem() {
     Gravador.blob = null; Gravador.seg = 0;
@@ -369,7 +380,8 @@ Object.assign(ACOES, {
       const blob = Gravador.blob; const cloud = C.cfg.cloudinary || {};
       // Com Cloudinary, o áudio vai para lá; sem ele, fica guardado no próprio banco (limite de 5 MB).
       const noBanco = blob && !Dados.demo && !(cloud.nome && cloud.preset);
-      if (noBanco && blob.size > AUDIO_MAX) { toast('O áudio passou de 5 MB. Grave uma mensagem mais curta (até uns 10 minutos) ou envie um arquivo menor.'); return false; }
+      if (blob && Gravador.seg > AUDIO_MAX_SEG + 1) { toast('O áudio passou de 20 minutos. Grave uma mensagem mais curta ou envie um arquivo de até 20 minutos.'); return false; }
+      if (noBanco && blob.size > AUDIO_MAX) { toast('O arquivo de áudio ficou grande demais (mais de 5 MB). Grave pela plataforma, com até 20 minutos, ou envie um arquivo menor.'); return false; }
       const doc = { titulo, texto: valor('ms-x') || 'Ouça a mensagem desta semana.', audio: '', dur: Gravador.seg ? fmtDur(Gravador.seg) : '', data: hoje(), autorId: S.u.id };
       if (blob && !noBanco) doc.audio = await Dados.enviarArquivo(new File([blob], 'mensagem.webm', { type: blob.type || 'audio/webm' }), 'mensagens', cloud);
       const id = await col('mensagens').adicionar(doc);
@@ -388,7 +400,15 @@ Object.assign(ACOES, {
 });
 MUDA['arq-audio'] = t => {
   const f = t.files && t.files[0]; if (!f) return;
-  const a = new Audio(URL.createObjectURL(f)); a.onloadedmetadata = () => { Gravador.seg = isFinite(a.duration) ? a.duration : 0; $('#estado-audio').textContent = `✓ ${f.name}${Gravador.seg ? ` · ${fmtDur(Gravador.seg)}` : ''}`; };
+  const a = new Audio(URL.createObjectURL(f)); a.onloadedmetadata = () => {
+    Gravador.seg = isFinite(a.duration) ? a.duration : 0;
+    if (Gravador.seg > AUDIO_MAX_SEG + 1) {
+      Gravador.blob = null; Gravador.seg = 0; t.value = ''; $('#previa-audio').innerHTML = '';
+      $('#estado-audio').textContent = `✕ ${f.name} tem ${fmtDur(a.duration)}. O limite é 20 minutos.`;
+      toast('Esse áudio tem mais de 20 minutos. Envie um arquivo de até 20 minutos.', 'aviso'); return;
+    }
+    $('#estado-audio').textContent = `✓ ${f.name}${Gravador.seg ? ` · ${fmtDur(Gravador.seg)}` : ''}`;
+  };
   previaAudio(f);
 };
 

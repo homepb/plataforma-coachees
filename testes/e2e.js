@@ -103,7 +103,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     ok(await p.evaluate(() => daCarteira('ana').D.comentarios.a31.texto === 'Ótimo começo, Ana.'), 'coach comenta a resposta');
     await ir('ensino'); await p.click('.topo [data-acao="aula"]'); await p.fill('#au-t', 'Reuniões que geram decisão'); await p.fill('#au-v', 'https://youtu.be/dQw4w9WgXcQ'); await modalSalvar();
     ok(await p.evaluate(() => Object.values(C.itens).some(i => i.titulo === 'Reuniões que geram decisão')), 'coach publica aula com link do YouTube');
-    await p.click('.topo [data-acao="mensagem"]'); await p.fill('#ms-t', 'Uma conversa difícil por semana'); await modalSalvar();
+    await p.click('.topo [data-acao="mensagem"]'); ok((await p.textContent('#modal')).includes('no máximo 20 minutos'), 'tela de gravação avisa o limite de 20 minutos'); await p.fill('#ms-t', 'Uma conversa difícil por semana'); await modalSalvar();
     ok(await p.evaluate(() => C.mensagens[0].titulo === 'Uma conversa difícil por semana'), 'coach publica mensagem da semana');
     await p.click('button[data-acao="pergunta"]'); await p.fill('#pq-t', 'O que você vai delegar esta semana?'); await modalSalvar();
     await p.click('[data-acao="mover"][data-d="1"]:not([disabled])'); await p.waitForTimeout(200);
