@@ -61,14 +61,44 @@ VIEWS.admin.pessoas = () => {
 };
 
 // Cria o acesso (login + cadastro) e manda as boas-vindas (RF-02, RF-70).
+// Em coachee novo, avisa por e-mail o endereço de Ajustes ("E-mail para avisos de novos coachees").
 async function criarPessoa(d) {
   const id = await Dados.criarAcesso(d);
   if (C.usuarios) C.usuarios.push({ id, ...d, email: d.email.toLowerCase() });
   const ej = C.cfg.emailjs || {};
+  const link = location.origin + location.pathname;
   if (d.papel === 'coachee' && ej.modeloBoasVindas) {
-    await Dados.enviarEmail(ej, ej.modeloBoasVindas, { to_email: d.email, to_name: primeiroNome(d.nome), plano: 'Master', data_fim: br(d.fim), link_whatsapp: C.cfg.whatsapp || '', link_plataforma: location.origin + location.pathname }).catch(() => false);
+    await Dados.enviarEmail(ej, ej.modeloBoasVindas, { to_email: d.email, to_name: primeiroNome(d.nome), plano: 'Master', data_fim: br(d.fim), link_whatsapp: C.cfg.whatsapp || '', link_plataforma: link }).catch(() => false);
   }
-  return id;
+  let aviso = null;
+  if (d.papel === 'coachee') {
+    const para = C.cfg.emailAvisos;
+    if (!para) aviso = 'sem-endereco';
+    else if (!ej.servico || !ej.chave || !ej.modeloAviso) aviso = 'sem-emailjs';
+    else aviso = await Dados.enviarEmail(ej, ej.modeloAviso, {
+      to_email: para, to_name: 'Vinicius', assunto: `Novo coachee: ${d.nome}`,
+      mensagem: `${d.nome} (${d.email}) foi cadastrado(a) em ${br(hoje())} por ${S.u.nome}. Coach responsável: ${d.coachNome || '—'}. Acesso de ${br(d.inicio)} a ${br(d.fim)}. ${link}`
+    }).then(ok => ok ? 'enviado' : 'falhou').catch(() => 'falhou');
+  }
+  return { id, aviso };
+}
+
+// Mensagem de confirmação depois do cadastro (aberta depois que o formulário fecha).
+function confirmarCadastro(d, r) {
+  const para = C.cfg.emailAvisos;
+  const linhaAviso = {
+    enviado: `<span class="chip ok">enviado</span> Aviso de novo coachee enviado para <b>${esc(para)}</b>.`,
+    'sem-emailjs': `<span class="chip warn">não enviado</span> O aviso para <b>${esc(para)}</b> sai quando o EmailJS estiver configurado em Ajustes.`,
+    'sem-endereco': '<span class="chip warn">não enviado</span> Informe em Ajustes o e-mail que recebe os avisos de novos coachees.',
+    falhou: `<span class="chip bad">falhou</span> Não foi possível enviar o aviso para <b>${esc(para)}</b>. Confira o EmailJS em Ajustes.`
+  }[r.aviso] || '';
+  setTimeout(() => abrirModal('Coachee cadastrado', `
+    <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px">${av(d, '', 'width:48px;height:48px;font-size:15px;')}<div><b style="font-size:16px">${esc(d.nome)}</b><div class="mu" style="font-size:13px">${esc(d.email)}</div></div></div>
+    <div class="lista">
+      <div class="item"><div class="tx"><b>Plano Master</b><small class="num">Acesso de ${br(d.inicio)} a ${br(d.fim)} · coach ${esc(d.coachNome || '—')}</small></div></div>
+      <div class="item"><div class="tx"><small>${Dados.demo ? '<span class="chip">demonstração</span> Na demonstração nenhum e-mail é enviado de verdade.' : `<span class="chip ok">enviado</span> ${esc(primeiroNome(d.nome))} recebeu o e-mail para criar a senha.`}</small></div></div>
+      ${linhaAviso && !Dados.demo ? `<div class="item"><div class="tx"><small>${linhaAviso}</small></div></div>` : ''}
+    </div>`, 'Ok', () => {}, { semCancelar: true }), 60);
 }
 
 ACOES.pessoa = t => {
@@ -104,8 +134,9 @@ ACOES.pessoa = t => {
       if (papel === 'coach') await Promise.all(coachees().filter(c => c.coachId === id).map(c => { c.coachNome = nome; return col('usuarios').salvar(c.id, { coachNome: nome }); }));
       toast('Cadastro atualizado.');
     } else {
-      await criarPessoa({ ...d, email, papel, ativo: true, criado: hoje() });
-      toast(`Acesso criado. ${primeiroNome(nome)} recebe o e-mail para criar a senha.`);
+      const novo = { ...d, email, papel, ativo: true, criado: hoje() };
+      const r = await criarPessoa(novo);
+      if (papel === 'coachee') confirmarCadastro(novo, r); else toast(`Acesso criado. ${primeiroNome(nome)} recebe o e-mail para criar a senha.`);
     }
     render();
   });
@@ -243,11 +274,12 @@ Object.assign(ACOES, {
       } else {
         const co = cs.find(c => c.id === valor('cv-c')); if (!co) { toast('Cadastre um coach antes.'); return false; }
         const inicio = valor('cv-i') || hoje();
-        usuarioId = await criarPessoa({ nome: v.nome, email: v.email, papel: 'coachee', coachId: co.id, coachNome: co.nome, inicio, fim: R.fimDoAcesso(inicio), ativo: true, criado: hoje() });
+        const novo = { nome: v.nome, email: v.email, papel: 'coachee', coachId: co.id, coachNome: co.nome, inicio, fim: R.fimDoAcesso(inicio), ativo: true, criado: hoje() };
+        const r = await criarPessoa(novo); usuarioId = r.id; confirmarCadastro(novo, r);
       }
       const d = { status: 'pago', confirmadoEm: hoje(), confirmadoPor: S.u.id, usuarioId };
       await col('vendas').salvar(v.id, d); Object.assign(v, d);
-      toast(existente ? 'Pagamento confirmado e acesso renovado.' : `Pagamento confirmado. Acesso criado e e-mail enviado para ${v.email}.`); render();
+      toast(existente ? 'Pagamento confirmado e acesso renovado.' : 'Pagamento confirmado.'); render();
     });
   },
   async 'expirar-venda'(t) { const v = C.vendas.find(x => x.id === t.dataset.id); await col('vendas').salvar(v.id, { status: 'expirado' }); v.status = 'expirado'; render(); },
@@ -276,7 +308,8 @@ VIEWS.admin.ajustes = () => {
       ${campo('aj-nome', 'Nome do programa', c.nome, 'Programa de Alta Performance')}
       ${campo('aj-wa', 'Convite do grupo no WhatsApp', c.whatsapp, 'https://chat.whatsapp.com/…')}
       ${campo('aj-disc', 'Link do teste DISC (NBM)', c.disc, 'https://…')}
-      ${campo('aj-sala', 'Sala padrão da mentoria em grupo', c.sala, 'https://meet.google.com/…')}</div>
+      ${campo('aj-sala', 'Sala padrão da mentoria em grupo', c.sala, 'https://meet.google.com/…')}
+      ${campo('aj-avisos', 'E-mail para avisos de novos coachees', c.emailAvisos, 'email@exemplo.com', 'email')}</div>
     <div class="card"><h3>Evento presencial anual</h3>
       ${campo('ev-t', 'Nome do evento', ev.titulo, 'Encontro Alta Performance 2027')}
       <div class="duas"><div>${campo('ev-d', 'Data', ev.data, '', 'date')}</div><div>${campo('ev-l', 'Local', ev.local, 'Cidade - UF')}</div></div>
@@ -296,12 +329,13 @@ VIEWS.admin.ajustes = () => {
 };
 FORMS['form-ajustes'] = async () => {
   const d = {
-    nome: valor('aj-nome') || 'Programa de Alta Performance', whatsapp: valor('aj-wa'), disc: valor('aj-disc'), sala: valor('aj-sala'),
+    nome: valor('aj-nome') || 'Programa de Alta Performance', whatsapp: valor('aj-wa'), disc: valor('aj-disc'), sala: valor('aj-sala'), emailAvisos: valor('aj-avisos'),
     evento: { titulo: valor('ev-t'), data: valor('ev-d'), local: valor('ev-l'), descricao: valor('ev-x') },
     cloudinary: { nome: valor('cl-n'), preset: valor('cl-p') },
     emailjs: { servico: valor('ej-s'), chave: valor('ej-k'), modeloBoasVindas: valor('ej-b'), modeloAviso: valor('ej-a') }
   };
   for (const k of ['whatsapp', 'disc', 'sala']) if (d[k] && !/^https:\/\//.test(d[k])) { toast('Os links precisam começar com https://'); return; }
+  if (d.emailAvisos && !/^\S+@\S+\.\S+$/.test(d.emailAvisos)) { toast('Informe um e-mail válido para os avisos.'); return; }
   await col('config').salvar('programa', d); Object.assign(C.cfg, d); toast('Ajustes salvos.'); render();
 };
 // Grava as trilhas e os passos do arquivo conteudo.js. Aulas existentes mantêm título, vídeo e ordem.
@@ -312,7 +346,7 @@ ACOES.instalar = async () => {
     if (!C.itens[id]) { await col('itens').salvar(id, it); C.itens[id] = { id, ...it }; novos.push(id); }
     else if (it.tipo === 'passo') { await col('itens').salvar(id, { campos: it.campos || null, chave: it.chave || null, sub: it.sub }); Object.assign(C.itens[id], { campos: it.campos, chave: it.chave }); atualizados++; }
   }
-  if (!C.cfg.nome) { const base = { nome: 'Programa de Alta Performance', meses: 12, duracaoSessao: 60 }; await col('config').salvar('programa', base); Object.assign(C.cfg, base); }
+  if (!C.cfg.nome) { const base = { nome: 'Programa de Alta Performance', meses: 12, duracaoSessao: 60, emailAvisos: 'vinicius.shoiti@gmail.com' }; await col('config').salvar('programa', base); Object.assign(C.cfg, base); }
   C.L = R.lista(C.trilhas, C.itens);
   toast(novos.length ? `Conteúdo instalado: ${plural(novos.length, 'item novo', 'itens novos')}.` : `Conteúdo já instalado. ${plural(atualizados, 'passo atualizado', 'passos atualizados')}.`); render();
 };

@@ -27,7 +27,11 @@ service cloud.firestore {
         || (coach() && request.resource.data.papel == 'coachee' && request.resource.data.coachId == request.auth.uid);
       // O coachee só altera foto, último acesso, aceite dos termos e o resumo do próprio progresso.
       allow update: if admin()
-        || (dono(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['foto', 'ultimoAcesso', 'termos', 'resumo']));
+        || (dono(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['foto', 'ultimoAcesso', 'termos', 'resumo']))
+        // O coach remove (desativa) coachees da própria carteira; só o administrador reativa.
+        || (coach() && resource.data.get('coachId', '') == request.auth.uid && resource.data.papel == 'coachee'
+            && request.resource.data.get('ativo', true) == false
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo', 'removidoEm', 'removidoPor']));
       allow delete: if false;
     }
 

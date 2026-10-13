@@ -85,12 +85,12 @@ VIEWS.coach.pessoas = () => {
     <select class="campo" data-muda="filtro" aria-label="Filtrar por situação">${[['todos', 'Todas as situações'], ['ok', 'Em dia'], ['atencao', 'Atenção'], ['parado', 'Parados'], ['renovar', 'Renovação'], ['novo', 'Novos']].map(([v, l]) => `<option value="${v}" ${S.filtro === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
   </div>
   <div class="card" style="padding-top:6px"><div class="tabela-wrap"><table>
-    <thead><tr><th>Coachee</th><th>Acesso até</th><th>Trilha</th><th style="width:170px">Progresso</th><th>Último acesso</th><th>Situação</th></tr></thead>
+    <thead><tr><th>Coachee</th><th>Acesso até</th><th>Trilha</th><th style="width:170px">Progresso</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead>
     <tbody>${lista.map(c => { const p = R.pct(C.L, c.D); return `<tr class="clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">
       <td><div class="pessoa">${av(c.u)}<div><b>${esc(c.u.nome)}</b><small>${esc(c.u.cargo || '')}</small></div></div></td>
       <td class="num mu">${br(c.u.fim)}</td><td>${c.prox ? `Trilha ${esc(c.prox.t.n)}` : 'Concluída'}</td>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="barra" style="flex:1"><b style="width:${p}%"></b></div><span class="num mu" style="font-size:12px">${p}%</span></div></td>
-      <td class="mu">${c.u.ultimoAcesso ? quando(c.u.ultimoAcesso) : 'ainda não acessou'}</td><td>${chipSt(c.s.st)}</td></tr>`; }).join('') || '<tr><td colspan="6" class="vazio">Nenhum coachee com esse filtro.</td></tr>'}</tbody>
+      <td class="mu">${c.u.ultimoAcesso ? quando(c.u.ultimoAcesso) : 'ainda não acessou'}</td><td>${chipSt(c.s.st)}</td><td style="text-align:right"><button class="bt bt-fantasma bt-sm" data-acao="remover-coachee" data-id="${c.u.id}" aria-label="Remover ${esc(c.u.nome)}">Remover</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="vazio">Nenhum coachee com esse filtro.</td></tr>'}</tbody>
   </table></div></div>`;
 };
 MUDA.filtro = t => { S.filtro = t.value; render(); };
@@ -110,10 +110,27 @@ ACOES['novo-coachee'] = () => {
     if (!nome) { toast('Informe o nome.'); return false; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { toast('Informe um e-mail válido.'); return false; }
     const d = { nome, email, papel: 'coachee', cargo: valor('nc-cargo'), coachId: S.u.id, coachNome: S.u.nome, inicio, fim: R.fimDoAcesso(inicio), ativo: true, criado: hoje() };
-    const id = await criarPessoa(d);
+    const r = await criarPessoa(d); const id = r.id;
     C.carteira.push({ u: { id, ...d, email: email.toLowerCase() }, D: { progresso: {}, acoes: [], rotinas: [], assessments: [], vitorias: [], paradas: {}, comentarios: {}, respostas: {}, insignias: { ganhas: {} } } });
     C.carteira.sort((a, b) => a.u.nome.localeCompare(b.u.nome));
-    toast(`Acesso criado. ${primeiroNome(nome)} recebe o e-mail para criar a senha.`); render();
+    render(); confirmarCadastro(d, r);
+  });
+};
+
+// Remover da carteira: desativa o acesso e tira o coachee da lista. Os dados ficam guardados;
+// o administrador pode reativar em Pessoas.
+ACOES['remover-coachee'] = (t, e) => {
+  e.stopPropagation();
+  const c = daCarteira(t.dataset.id);
+  abrirModal('Remover coachee', `<p style="margin:0 0 12px">Remover <b>${esc(c.u.nome)}</b> da sua carteira?</p>
+    <div class="lista">
+      <div class="item"><div class="tx"><small>O acesso à plataforma é desativado na hora.</small></div></div>
+      <div class="item"><div class="tx"><small>As respostas, o plano de ação e a evolução ficam guardados. A administração pode reativar o acesso em Pessoas.</small></div></div>
+    </div>`, 'Remover', async () => {
+    const d = { ativo: false, removidoEm: hoje(), removidoPor: S.u.id };
+    await col('usuarios').salvar(c.u.id, d);
+    C.carteira = C.carteira.filter(x => x !== c);
+    toast(`${c.u.nome} foi removido(a) da sua carteira e o acesso foi desativado.`); render();
   });
 };
 

@@ -24,6 +24,8 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     const transborda = async () => p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     const foto = async n => { if (SAIDA && nome === 'computador') await p.screenshot({ path: path.join(SAIDA, n + '.png'), fullPage: true }); };
     const modalSalvar = async () => { await p.click('#form-modal button[type=submit]'); await p.waitForTimeout(250); };
+    // Fecha a mensagem de confirmação de cadastro e devolve o texto dela.
+    const confirmacao = async () => { await p.waitForTimeout(150); const t = await p.$eval('#modal', m => m.open ? m.innerText : ''); if (t) await modalSalvar(); return t; };
 
     // ---------- login ----------
     ok(await p.$('#form-login'), 'tela de login aparece');
@@ -81,7 +83,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       if (nome === 'celular') ok(!(await transborda()), `coach: ${v} sem rolagem lateral`);
     }
     await ir('pessoas'); await p.click('[data-acao="novo-coachee"]'); await p.fill('#nc-nome', 'Marcos Novo'); await p.fill('#nc-email', 'marcos@demo.com'); await modalSalvar();
+    ok((await confirmacao()).includes('Coachee cadastrado'), 'mensagem de confirmação do cadastro pelo coach');
     ok((await texto()).includes('Marcos Novo') && await p.evaluate(() => daCarteira(C.carteira.find(c => c.u.email === 'marcos@demo.com').u.id).u.coachId === 'vinicius'), 'coach cadastra coachee na própria carteira');
+    await p.click(`[data-acao="remover-coachee"][data-id="${await p.evaluate(() => C.carteira.find(c => c.u.email === 'marcos@demo.com').u.id)}"]`); await modalSalvar();
+    ok(!(await texto()).includes('Marcos Novo') && await p.evaluate(() => Dados.col('usuarios').listar('email', 'marcos@demo.com').then(l => l[0].ativo === false)), 'coach remove coachee da carteira (acesso desativado)');
     await ir('ficha', 'ana');
     for (const a of ['geral', 'acao', 'evolucao', 'assess', 'respostas']) { await p.click(`[data-aba="${a}"]`); await p.waitForTimeout(120); ok(!(await texto()).includes('Não foi possível'), `ficha: aba ${a}`); }
     await p.click('[data-acao="comentar"][data-alvo="a31"]'); await p.fill('#cm-t', 'Ótimo começo, Ana.'); await modalSalvar();
@@ -110,8 +115,9 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     }
     await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]');
     await p.fill('#pe-nome', 'Laura Teste'); await p.fill('#pe-email', 'laura@demo.com'); await modalSalvar();
+    ok((await confirmacao()).includes('Coachee cadastrado'), 'mensagem de confirmação do cadastro pelo administrador');
     ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'laura@demo.com' && u.fim)), 'nova coachee criada com fim do acesso');
-    await ir('entradas'); await p.click('[data-acao="confirmar-venda"]'); await modalSalvar();
+    await ir('entradas'); await p.click('[data-acao="confirmar-venda"]'); await modalSalvar(); await confirmacao();
     ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'rafael@demo.com') && C.vendas.find(v => v.email === 'rafael@demo.com').status === 'pago'), 'confirmar pagamento cria o acesso');
     await p.click('[data-acao="confirmar-sessao"]'); await p.waitForTimeout(200);
     ok(await p.evaluate(() => C.pedidos[0].status === 'pago'), 'confirmar pagamento da sessão avulsa');

@@ -70,6 +70,14 @@ test('coach cadastra coachee só na própria carteira', async () => {
   await assertFails(db('ana').doc('usuarios/novo6').set({ nome: 'Novo', papel: 'coachee', coachId: 'ana' }));
 });
 
+test('coach remove (desativa) só coachee da própria carteira e não reativa', async () => {
+  await assertFails(db('mari').doc('usuarios/novo3').update({ ativo: false, removidoEm: '2026-10-13' }));
+  await assertFails(db('vini').doc('usuarios/novo3').update({ ativo: false, fim: '2030-01-01' }));
+  await assertSucceeds(db('vini').doc('usuarios/novo3').update({ ativo: false, removidoEm: '2026-10-13', removidoPor: 'vini' }));
+  await assertFails(db('vini').doc('usuarios/novo3').update({ ativo: true }));
+  await assertSucceeds(db('admin').doc('usuarios/novo3').update({ ativo: true }));
+});
+
 test('anotações do coach são privadas', async () => {
   await assertFails(db('ana').doc('anotacoes/ana').get());
   await assertSucceeds(db('vini').doc('anotacoes/ana').get());

@@ -95,7 +95,7 @@ function SementeDemo() {
     f3: { area: 'Marketing', titulo: 'Agência de marketing digital', descricao: 'Campanhas, redes sociais e site.', contato: '' }
   };
   const config = { programa: {
-    nome: 'Programa de Alta Performance', whatsapp: 'https://chat.whatsapp.com/', disc: '', sala: 'https://meet.google.com/',
+    nome: 'Programa de Alta Performance', emailAvisos: 'vinicius.shoiti@gmail.com', whatsapp: 'https://chat.whatsapp.com/', disc: '', sala: 'https://meet.google.com/',
     pagMaster: '', pagSessao: '', precoMaster: '', precoSessao: '', duracaoSessao: 60, meses: 12,
     evento: { titulo: 'Encontro Alta Performance 2027', data: dia(100), local: 'Local a confirmar', descricao: 'Um dia de imersão com todos os coachees.' },
     cloudinary: { nome: '', preset: '' }, emailjs: { servico: '', chave: '', modeloBoasVindas: '', modeloAviso: '' }

@@ -50,7 +50,7 @@ const falha = e => { console.error(e); toast(e && e.message ? e.message : 'Algo 
 // Modal com formulário. aoSalvar pode ser assíncrona; devolver false mantém o modal aberto.
 function abrirModal(titulo, corpo, botao, aoSalvar, opcoes = {}) {
   const m = $('#modal');
-  m.innerHTML = `<form method="dialog" id="form-modal"><div class="modal-cab"><h2>${titulo}</h2><button type="button" class="x" data-fechar aria-label="Fechar">×</button></div><div class="modal-corpo">${corpo}</div>${botao ? `<div class="modal-pe"><button type="button" class="bt bt-fantasma" data-fechar>${opcoes.cancelar || 'Cancelar'}</button><button class="bt bt-ouro" type="submit">${botao}</button></div>` : ''}</form>`;
+  m.innerHTML = `<form method="dialog" id="form-modal"><div class="modal-cab"><h2>${titulo}</h2><button type="button" class="x" data-fechar aria-label="Fechar">×</button></div><div class="modal-corpo">${corpo}</div>${botao ? `<div class="modal-pe">${opcoes.semCancelar ? '' : `<button type="button" class="bt bt-fantasma" data-fechar>${opcoes.cancelar || 'Cancelar'}</button>`}<button class="bt bt-ouro" type="submit">${botao}</button></div>` : ''}</form>`;
   m.querySelectorAll('[data-fechar]').forEach(b => b.onclick = () => m.close());
   m.oncancel = opcoes.obrigatorio ? e => e.preventDefault() : null;
   $('#form-modal').onsubmit = async e => {
@@ -113,7 +113,7 @@ async function carregar() {
 }
 
 async function carregarCarteira() {
-  const pessoas = (await col('usuarios').listar('coachId', S.u.id)).filter(p => p.papel === 'coachee');
+  const pessoas = (await col('usuarios').listar('coachId', S.u.id)).filter(p => p.papel === 'coachee' && p.ativo !== false);
   C.carteira = await Promise.all(pessoas.map(async p => ({ u: p, D: await carregarCoachee(p.id) })));
   C.carteira.sort((a, b) => a.u.nome.localeCompare(b.u.nome));
   const ids = new Set(pessoas.map(p => p.id));
