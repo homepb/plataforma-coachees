@@ -41,6 +41,16 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await p.evaluate(async j => { const pm = C.L.find(i => i.chave === 'meta'); await Dados.col('progresso').remover(`${S.u.id}_${pm.id}`); C.D.progresso = JSON.parse(j); const v = C.D.progresso[pm.id]; if (v) await Dados.col('progresso').salvar(`${S.u.id}_${pm.id}`, v); render(); }, progAntes);
 
     // ---------- coachee ----------
+    // Encontros: próximos do mais perto para o mais longe, depois os que já aconteceram (mais recente primeiro).
+    await ir('comunidade');
+    ok(await p.evaluate(() => {
+      const h = hoje();
+      const prox = C.encontros.filter(e => e.data >= h).map(e => e.data); const pass = C.encontros.filter(e => e.data < h).map(e => e.data).reverse();
+      const esperado = [...prox, ...pass].map(d => C.encontros.find(e => e.data === d).titulo);
+      const lista = [...document.querySelectorAll('.card')].find(c => c.querySelector('h3') && c.querySelector('h3').textContent.startsWith('Encontros e gravações'));
+      const titulos = [...lista.querySelectorAll('.item .tx b')].map(b => b.textContent);
+      return prox.length > 1 && prox.every((d, i) => !i || prox[i - 1] <= d) && JSON.stringify(titulos) === JSON.stringify(esperado) && lista.textContent.indexOf('Próximos') < lista.textContent.indexOf('Já aconteceram');
+    }), 'encontros do mais próximo para o mais distante, depois os passados');
     for (const v of ['painel', 'jornada', 'quem', 'evolucao', 'pratica', 'comunidade']) {
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coachee: ${v} abre`);
       if (nome === 'celular') ok(!(await transborda()), `coachee: ${v} sem rolagem lateral`);

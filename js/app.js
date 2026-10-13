@@ -154,6 +154,15 @@ ACOES['abrir-arquivo'] = async t => {
   } catch (e) { if (aba) aba.close(); throw e; } finally { t.disabled = false; t.textContent = txt; }
 };
 
+/* ===================== Encontros ===================== */
+// Próximos primeiro, do mais próximo para o mais distante; depois os que já aconteceram, do mais recente para o mais antigo.
+function listaEncontros(item, vazio = 'Nenhum encontro ainda.') {
+  const h = hoje(); const prox = C.encontros.filter(e => e.data >= h); const pass = C.encontros.filter(e => e.data < h).reverse();
+  if (!prox.length && !pass.length) return `<div class="vazio">${vazio}</div>`;
+  const titulo = t => `<div class="rotulinho" style="margin:14px 0 2px">${t}</div>`;
+  return (prox.length ? titulo('Próximos') + prox.map(item).join('') : '') + (pass.length ? titulo('Já aconteceram') + pass.map(item).join('') : '');
+}
+
 /* ===================== Carregamento ===================== */
 const col = n => Dados.col(n);
 const porId = (lista) => Object.fromEntries(lista.map(x => [x.id, x]));

@@ -264,9 +264,9 @@ VIEWS.coach.encontros = () => {
     ${pauta.map(({ c, a }) => `<div class="item"><div class="tx"><b>${esc(a.oque)}</b><small>${esc(c.u.nome)} · ${esc(a.quem)} · até ${brc(a.prazo)}</small></div></div>`).join('') || '<div class="vazio">Nenhuma ação na pauta ainda.</div>'}
   </div></div>
   <div class="card"><h3>Calendário</h3><div class="lista">
-    ${C.encontros.slice().reverse().map(e => `<div class="item">${caixaData(e.data)}<div class="tx"><b>${esc(e.titulo)}</b><small>${e.tipo === 'convidado' ? 'Aula com convidado' : 'Mentoria em grupo'} · ${esc(e.hora || '')} · todos os coachees</small></div>
+    ${listaEncontros(e => `<div class="item">${caixaData(e.data)}<div class="tx"><b>${esc(e.titulo)}</b><small>${e.tipo === 'convidado' ? 'Aula com convidado' : 'Mentoria em grupo'} · ${esc(e.hora || '')} · todos os coachees</small></div>
       ${e.data < h ? (ytId(e.gravacao) ? '<span class="chip ok">gravação publicada</span>' : '<span class="chip warn">sem gravação</span>') : `<button class="bt bt-linha bt-sm" data-acao="avisar-encontro" data-id="${e.id}">Avisar</button>`}
-      <button class="bt bt-fantasma bt-sm" data-acao="encontro" data-id="${e.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum encontro agendado.</div>'}
+      <button class="bt bt-fantasma bt-sm" data-acao="encontro" data-id="${e.id}">Editar</button></div>`, 'Nenhum encontro agendado.')}
   </div>
   <div class="sep"></div><p class="mu" style="font-size:12.5px;margin:0">Depois do encontro, abra "Editar" e cole o link da gravação no YouTube (não listado). Ela aparece na Comunidade de todos os coachees.</p></div>`;
 };
