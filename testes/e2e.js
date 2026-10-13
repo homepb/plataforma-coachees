@@ -83,6 +83,9 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coach: ${v} abre`);
       if (nome === 'celular') ok(!(await transborda()), `coach: ${v} sem rolagem lateral`);
     }
+    await ir('encontros'); await p.click('[data-acao="avisar-encontro"]'); await p.waitForTimeout(150);
+    ok(await p.evaluate(() => $('#modal').open && /(Mentoria em grupo|Aula com convidado)/.test($('#av-texto').value) && !!document.querySelector('[data-acao="whats-aviso"]')), 'Avisar mostra o texto pronto, com copiar e WhatsApp');
+    await p.click('#form-modal button[type=submit]'); await p.waitForTimeout(150);
     await ir('pessoas'); await p.click('[data-acao="novo-coachee"]'); await p.fill('#nc-nome', 'Marcos Novo'); await p.fill('#nc-email', 'marcos@demo.com'); await modalSalvar();
     ok((await confirmacao()).includes('cadastrado(a) com sucesso'), 'janela fecha e aviso de sucesso aparece no topo (coach)');
     ok((await texto()).includes('Marcos Novo') && await p.evaluate(() => daCarteira(C.carteira.find(c => c.u.email === 'marcos@demo.com').u.id).u.coachId === 'vinicius'), 'coach cadastra coachee na própria carteira');

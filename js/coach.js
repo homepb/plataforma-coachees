@@ -5,17 +5,32 @@ const chipSt = st => `<span class="chip ${STATUS[st][0]}"><span class="p"></span
 const quando = d => { const n = R.dias(d, hoje()); return n <= 0 ? 'hoje' : n === 1 ? 'ontem' : `há ${n} dias`; };
 const tituloItem = id => (C.L.find(i => i.id === id) || {}).titulo || id;
 
-// Avisos por e-mail (EmailJS). Sem EmailJS configurado, o coach copia o texto e manda no grupo do WhatsApp.
+// Avisos aos coachees. Com os e-mails automáticos configurados (EmailJS), manda um e-mail para cada pessoa;
+// sem eles, mostra o texto pronto para copiar ou mandar pelo WhatsApp.
 async function avisar(pessoas, assunto, mensagem) {
   const ej = C.cfg.emailjs || {};
-  if (!ej.servico || !ej.modeloAviso) {
-    try { await navigator.clipboard.writeText(`${assunto}\n\n${mensagem}`); toast('E-mail não configurado: o aviso foi copiado. Cole no grupo do WhatsApp.'); } catch (e) { toast('O envio automático de e-mails não está configurado. Peça à administração para configurar em Ajustes → E-mails automáticos.'); }
+  const texto = `${assunto}\n\n${mensagem}`;
+  if (!ej.servico || !ej.chave || !ej.modeloAviso) {
+    abrirModal('Avisar os coachees', `<p class="mu" style="margin:0 0 10px;font-size:13px">O envio automático de e-mails ainda não está configurado. Mande este aviso pelo grupo do WhatsApp (dá para editar o texto antes):</p>
+      <textarea class="campo" id="av-texto" rows="6" aria-label="Texto do aviso">${esc(texto)}</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="bt bt-linha bt-sm" data-acao="copiar-aviso">Copiar aviso</button><a class="bt bt-wa bt-sm" href="https://wa.me/" target="_blank" rel="noopener" data-acao="whats-aviso">Enviar pelo WhatsApp</a></div>
+      <p class="mu" style="font-size:12px;margin:12px 0 0">Para o aviso chegar por e-mail a cada coachee, a administração configura em Ajustes → E-mails automáticos.</p>`, 'Fechar', () => {}, { semCancelar: true });
     return;
   }
   let n = 0;
-  for (const p of pessoas) { if (await Dados.enviarEmail(ej, ej.modeloAviso, { to_email: p.email, to_name: primeiroNome(p.nome), assunto, mensagem })) n++; }
-  toast(`Aviso enviado por e-mail para ${plural(n, 'pessoa', 'pessoas')}.`);
+  for (const p of pessoas) { if (await Dados.enviarEmail(ej, ej.modeloAviso, { to_email: p.email, to_name: primeiroNome(p.nome), assunto, mensagem }).catch(() => false)) n++; }
+  if (n) toast(`Aviso enviado por e-mail para ${plural(n, 'pessoa', 'pessoas')}.`);
+  else toast('Nenhum e-mail foi enviado. Confira os dados em Ajustes → E-mails automáticos.', 'erro');
 }
+Object.assign(ACOES, {
+  async 'copiar-aviso'() {
+    const c = $('#av-texto');
+    try { await navigator.clipboard.writeText(c.value); toast('Aviso copiado. Agora é só colar no grupo do WhatsApp.'); }
+    catch (e) { c.select(); toast('Selecione o texto e copie com Ctrl+C (no celular, toque e segure).', 'aviso'); }
+  },
+  // O link do WhatsApp leva o texto atual da caixa (com as edições).
+  'whats-aviso'(t) { t.href = 'https://wa.me/?text=' + encodeURIComponent($('#av-texto').value); }
+});
 
 // Respostas recentes (14 dias) que ainda não têm comentário do coach.
 function respostasNovas() {
