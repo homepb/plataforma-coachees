@@ -57,7 +57,7 @@ VIEWS.admin.pessoas = () => {
     <tbody>${lista.map(u => `<tr><td><div class="pessoa">${av(u, u.papel === 'coachee' ? '' : 'cinza')}<div><b>${esc(u.nome)}</b><small>${esc(u.email)}</small></div></div></td>
       <td><span class="chip ${u.papel === 'coach' ? 'ouro' : ''}">${tipoDe(u)}</span></td><td>${u.papel === 'coachee' ? esc(nomeDe(u.coachId)) : '—'}</td><td class="num">${u.fim ? br(u.fim) : '—'}</td>
       <td class="mu num">${u.ultimoAcesso ? br(u.ultimoAcesso) : 'nunca'}</td><td>${situ(u)}</td>
-      <td style="text-align:right;white-space:nowrap"><button class="bt bt-fantasma bt-sm" data-acao="reenviar" data-id="${u.id}">Reenviar acesso</button> <button class="bt bt-fantasma bt-sm" data-acao="pessoa" data-id="${u.id}">Editar</button></td></tr>`).join('') || '<tr><td colspan="7" class="vazio">Ninguém encontrado.</td></tr>'}</tbody>
+      <td style="text-align:right;white-space:nowrap"><button class="bt bt-fantasma bt-sm" data-acao="reenviar" data-id="${u.id}">Reenviar acesso</button> <button class="bt bt-fantasma bt-sm" data-acao="pessoa" data-id="${u.id}">Editar</button>${u.id === S.u.id ? '' : ` <button class="bt bt-fantasma bt-sm" data-acao="excluir-pessoa" data-id="${u.id}" aria-label="Excluir ${esc(u.nome)}">Excluir</button>`}</td></tr>`).join('') || '<tr><td colspan="7" class="vazio">Ninguém encontrado.</td></tr>'}</tbody>
   </table></div></div>`;
 };
 
@@ -105,6 +105,28 @@ function confirmarCadastro(d, r) {
 // Coach responsável, início e fim só aparecem para coachees. O acesso de administrador extra é só para coach:
 // coachee nunca é administrador.
 MUDA['tipo-pessoa'] = t => { $('#pe-so-coachee').hidden = t.value !== 'coachee'; $('#pe-linha-admin').hidden = t.value !== 'coach'; };
+
+// Excluir apaga o cadastro: a pessoa deixa de aparecer e não entra mais na plataforma.
+// O login fica em Authentication (dá para apagar no console do Firebase) e as respostas do coaching
+// ficam guardadas, porque o administrador não tem acesso a elas.
+ACOES['excluir-pessoa'] = t => {
+  const u = C.usuarios.find(x => x.id === t.dataset.id);
+  if (u.id === S.u.id) { toast('Você não pode excluir o seu próprio cadastro.'); return; }
+  const carteira = coachees().filter(c => c.coachId === u.id && c.ativo !== false);
+  if (u.papel === 'coach' && carteira.length) {
+    abrirModal('Não dá para excluir ainda', `<p style="margin:0">${esc(u.nome)} é coach responsável por ${plural(carteira.length, 'coachee ativo', 'coachees ativos')}: ${carteira.map(c => esc(c.nome)).join(', ')}.</p><p class="mu" style="margin:10px 0 0">Antes, edite cada coachee e escolha outro coach responsável.</p>`, 'Ok', () => {}, { semCancelar: true });
+    return;
+  }
+  abrirModal('Excluir pessoa', `<p style="margin:0 0 12px">Excluir <b>${esc(u.nome)}</b> (${esc(u.email)})?</p>
+    <div class="lista">
+      <div class="item"><div class="tx"><small>O cadastro é apagado e a pessoa não entra mais na plataforma. Não dá para desfazer.</small></div></div>
+      ${u.papel === 'coachee' ? '<div class="item"><div class="tx"><small>Para só suspender o acesso, use Editar → desmarque "Acesso ativo".</small></div></div>' : ''}
+    </div>`, 'Excluir', async () => {
+    await col('usuarios').remover(u.id);
+    C.usuarios = C.usuarios.filter(x => x !== u);
+    toast(`${u.nome} foi excluído(a).`); render();
+  });
+};
 
 ACOES.pessoa = t => {
   const id = t.dataset.id; const u = id ? C.usuarios.find(x => x.id === id) : { papel: t.dataset.papel || 'coachee', inicio: hoje(), ativo: true };

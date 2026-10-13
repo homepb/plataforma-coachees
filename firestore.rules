@@ -35,7 +35,8 @@ service cloud.firestore {
         || (coach() && resource.data.get('coachId', '') == request.auth.uid && resource.data.papel == 'coachee'
             && request.resource.data.get('ativo', true) == false
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ativo', 'removidoEm', 'removidoPor']));
-      allow delete: if false;
+      // O administrador exclui cadastros, menos o próprio.
+      allow delete: if admin() && request.auth.uid != uid;
     }
 
     // Conteúdo do programa: igual para todos (RN-09).

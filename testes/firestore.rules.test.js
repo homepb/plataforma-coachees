@@ -139,6 +139,14 @@ test('coach ou coachee com acesso de administrador', async () => {
   await assertFails(db('vini').doc('usuarios/novo7').set({ nome: 'X', papel: 'coachee', coachId: 'vini', admin: true }));
 });
 
+test('só o administrador exclui cadastros, e nunca o próprio', async () => {
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/apagar').set({ nome: 'Apagar', papel: 'coachee', coachId: 'vini' }));
+  await assertFails(db('mari').doc('usuarios/apagar').delete());
+  await assertFails(db('apagar').doc('usuarios/apagar').delete());
+  await assertFails(db('admin').doc('usuarios/admin').delete());
+  await assertSucceeds(db('admin').doc('usuarios/apagar').delete());
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));
