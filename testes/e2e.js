@@ -15,7 +15,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     const p = await b.newPage({ viewport: { width: w, height: h } });
     const erros = [];
     p.on('pageerror', e => erros.push(e.message));
-    p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_INTERNET|ERR_NAME|net::/.test(m.text())) erros.push(m.text()); });
+    p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|ERR_INTERNET|ERR_NAME|net::|Já existe um acesso/.test(m.text())) erros.push(m.text()); });
     p.on('dialog', d => d.accept());
     await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload(); await p.waitForTimeout(400);
     const entrar = async email => { await p.evaluate(e => Dados.sair().then(() => Dados.entrar(e)), email); await p.waitForTimeout(500); };
@@ -25,7 +25,8 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     const foto = async n => { if (SAIDA && nome === 'computador') await p.screenshot({ path: path.join(SAIDA, n + '.png'), fullPage: true }); };
     const modalSalvar = async () => { await p.click('#form-modal button[type=submit]'); await p.waitForTimeout(250); };
     // Fecha a mensagem de confirmação de cadastro e devolve o texto dela.
-    const confirmacao = async () => { await p.waitForTimeout(150); const t = await p.$eval('#modal', m => m.open ? m.innerText : ''); if (t) await modalSalvar(); return t; };
+    // Depois de salvar, a janela fecha e o aviso de sucesso aparece no topo da página.
+    const confirmacao = async () => { await p.waitForTimeout(150); return p.evaluate(() => !$('#modal').open && $('#toast').classList.contains('on') && document.body.contains($('#toast')) && $('#toast').parentElement === document.body ? $('#toast').innerText : ''); };
 
     // ---------- login ----------
     ok(await p.$('#form-login'), 'tela de login aparece');
@@ -83,7 +84,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       if (nome === 'celular') ok(!(await transborda()), `coach: ${v} sem rolagem lateral`);
     }
     await ir('pessoas'); await p.click('[data-acao="novo-coachee"]'); await p.fill('#nc-nome', 'Marcos Novo'); await p.fill('#nc-email', 'marcos@demo.com'); await modalSalvar();
-    ok((await confirmacao()).includes('Coachee cadastrado'), 'mensagem de confirmação do cadastro pelo coach');
+    ok((await confirmacao()).includes('cadastrado(a) com sucesso'), 'janela fecha e aviso de sucesso aparece no topo (coach)');
     ok((await texto()).includes('Marcos Novo') && await p.evaluate(() => daCarteira(C.carteira.find(c => c.u.email === 'marcos@demo.com').u.id).u.coachId === 'vinicius'), 'coach cadastra coachee na própria carteira');
     ok((await texto()).includes('Trocar para Administrador'), 'coach com acesso de administrador vê a troca de perfil');
     await p.click('[data-acao="trocar-modo"]'); await p.waitForTimeout(400);
@@ -128,7 +129,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     ok(await p.$eval('#pe-linha-admin', e => e.hidden), 'administrador: sem a opção extra de administrador');
     await p.selectOption('#pe-papel', 'coachee');
     await p.fill('#pe-nome', 'Laura Teste'); await p.fill('#pe-email', 'laura@demo.com'); await modalSalvar();
-    ok((await confirmacao()).includes('Coachee cadastrado'), 'mensagem de confirmação do cadastro pelo administrador');
+    ok((await confirmacao()).includes('cadastrado(a) com sucesso') && await p.evaluate(() => S.view === 'pessoas'), 'janela fecha, volta para Pessoas e aviso de sucesso (administrador)');
+    await p.click('.topo [data-acao="pessoa"]'); await p.fill('#pe-nome', 'Repetida'); await p.fill('#pe-email', 'laura@demo.com'); await modalSalvar();
+    ok(await p.evaluate(() => $('#modal').open && $('#toast').parentElement === $('#modal') && $('#toast').classList.contains('erro')), 'erro aparece em vermelho por cima da janela (e-mail repetido)');
+    await p.click('#form-modal [data-fechar]'); await p.waitForTimeout(150);
     ok(!(await p.$(`[data-acao="excluir-pessoa"][data-id="${await p.evaluate(() => S.u.id)}"]`)), 'administrador não vê "Excluir" no próprio cadastro');
     await p.click('[data-acao="excluir-pessoa"][data-id="vinicius"]'); await p.waitForTimeout(150);
     ok((await p.$eval('#modal', m => m.innerText)).includes('Não dá para excluir'), 'coach com carteira não pode ser excluído');

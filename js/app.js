@@ -44,8 +44,21 @@ function video(url, legenda, dur) {
   return `<div class="video"><div class="aviso-video"><div class="play" role="img" aria-label="Vídeo" style="margin:0 auto 12px"></div>O vídeo desta aula ainda não foi publicado.</div><div class="rodape"><span>${esc(legenda)}</span>${dur ? `<span class="num">${dur} min</span>` : ''}</div></div>`;
 }
 
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 3200); }
-const falha = e => { console.error(e); toast(e && e.message ? e.message : 'Algo deu errado. Tente de novo.'); };
+// Aviso no topo da tela: verde (ok), amarelo (algo a corrigir) ou vermelho (erro).
+// Com uma janela aberta, o aviso vai para dentro dela, senão ficaria escondido atrás.
+const PEDE_CORRECAO = /^(Informe|Escreva|Preencha|Dê |Faltam|Use |Cole|Diga|Descreva|Escolha|Marque|Você não pode|Coachee não pode|Os links|Configure|Pare|Cada ação|Cadastre|Responda|Conte|Este navegador|No modo demonstração)/;
+function toast(msg, tipo, detalhe = '') {
+  const t = $('#toast'); tipo = tipo || (PEDE_CORRECAO.test(msg) ? 'aviso' : 'ok');
+  const m = $('#modal'); (m.open ? m : document.body).appendChild(t);
+  t.className = `toast ${tipo}`; t.setAttribute('role', tipo === 'erro' ? 'alert' : 'status');
+  t.innerHTML = `<span class="ic" aria-hidden="true">${tipo === 'ok' ? '✓' : '!'}</span><div class="tx-aviso"><b>${esc(msg)}</b>${detalhe ? `<div class="det">${detalhe}</div>` : ''}</div><button type="button" class="x" aria-label="Fechar aviso">×</button>`;
+  t.querySelector('button').onclick = () => t.classList.remove('on');
+  requestAnimationFrame(() => t.classList.add('on'));
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), tipo === 'ok' && !detalhe ? 5000 : 9000);
+}
+const falha = e => { console.error(e); toast(e && e.message ? e.message : 'Algo deu errado. Tente de novo.', 'erro'); };
+// Ao fechar a janela, o aviso volta para a página e continua visível.
+$('#modal').addEventListener('close', () => document.body.appendChild($('#toast')));
 
 // Modal com formulário. aoSalvar pode ser assíncrona; devolver false mantém o modal aberto.
 function abrirModal(titulo, corpo, botao, aoSalvar, opcoes = {}) {

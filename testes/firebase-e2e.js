@@ -55,7 +55,7 @@ async function definirSenha(email, senha) {
   const texto = () => p.$eval('#raiz', e => e.innerText);
   const ir = async (v, id) => { await p.evaluate(([v, id]) => ir(v, id), [v, id || null]); await espera(200); };
   const salvarModal = async () => { await p.click('#form-modal button[type=submit]'); await espera(900); };
-  const confirmacao = async () => { await espera(300); const t = await p.$eval('#modal', m => m.open ? m.innerText : ''); if (t) await salvarModal(); return t; };
+  const confirmacao = async () => { await espera(300); return p.evaluate(() => !$('#modal').open && $('#toast').classList.contains('on') ? $('#toast').innerText : ''); };
   const entrar = async (email, senha) => {
     if (await p.$('.app')) { await p.evaluate(() => Dados.sair()); await espera(600); }
     await p.waitForSelector('#form-login');
@@ -75,7 +75,7 @@ async function definirSenha(email, senha) {
   await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]');
   await p.fill('#pe-nome', 'Ana Souza'); await p.fill('#pe-email', 'ana@teste.com'); await salvarModal(); await espera(800);
   const conf = await confirmacao();
-  ok(conf.includes('Coachee cadastrado') && conf.includes('aviso'), 'confirmação do cadastro com a situação do aviso por e-mail');
+  ok(conf.includes('cadastrado(a) com sucesso') && conf.includes('envio automático de e-mails'), 'aviso de sucesso com a situação do e-mail para o Vinicius');
   ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'ana@teste.com' && u.coachNome === 'Vinicius')), 'coachee criada com o coach responsável');
   ok(await p.evaluate(() => S.u.email === 'admin@teste.com'), 'criar acessos não derruba a sessão do administrador');
   await ir('entradas'); await p.click('[data-acao="venda"]'); await p.fill('#vd-n', 'Rafael Nunes'); await p.fill('#vd-e', 'rafael@teste.com'); await salvarModal();

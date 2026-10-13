@@ -9,7 +9,7 @@ const tituloItem = id => (C.L.find(i => i.id === id) || {}).titulo || id;
 async function avisar(pessoas, assunto, mensagem) {
   const ej = C.cfg.emailjs || {};
   if (!ej.servico || !ej.modeloAviso) {
-    try { await navigator.clipboard.writeText(`${assunto}\n\n${mensagem}`); toast('E-mail não configurado: o aviso foi copiado. Cole no grupo do WhatsApp.'); } catch (e) { toast('Configure o EmailJS em Ajustes para enviar avisos por e-mail.'); }
+    try { await navigator.clipboard.writeText(`${assunto}\n\n${mensagem}`); toast('E-mail não configurado: o aviso foi copiado. Cole no grupo do WhatsApp.'); } catch (e) { toast('O envio automático de e-mails não está configurado. Peça à administração para configurar em Ajustes → E-mails automáticos.'); }
     return;
   }
   let n = 0;

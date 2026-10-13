@@ -84,22 +84,21 @@ async function criarPessoa(d) {
   return { id, aviso };
 }
 
-// Mensagem de confirmação depois do cadastro (aberta depois que o formulário fecha).
+// Aviso de sucesso do cadastro, com os detalhes e a situação dos e-mails.
 function confirmarCadastro(d, r) {
   const para = C.cfg.emailAvisos;
-  const linhaAviso = {
-    enviado: `<span class="chip ok">enviado</span> Aviso de novo coachee enviado para <b>${esc(para)}</b>.`,
-    'sem-emailjs': `<span class="chip warn">não enviado</span> O aviso para <b>${esc(para)}</b> sai quando o EmailJS estiver configurado em Ajustes.`,
-    'sem-endereco': '<span class="chip warn">não enviado</span> Informe em Ajustes o e-mail que recebe os avisos de novos coachees.',
-    falhou: `<span class="chip bad">falhou</span> Não foi possível enviar o aviso para <b>${esc(para)}</b>. Confira o EmailJS em Ajustes.`
+  const linhaAviso = Dados.demo ? '' : {
+    enviado: `Aviso de novo coachee enviado para ${esc(para)}.`,
+    'sem-emailjs': `O aviso para ${esc(para)} ainda não foi enviado, porque o envio automático de e-mails não está configurado (Ajustes → E-mails automáticos).`,
+    'sem-endereco': 'Aviso de novo coachee não enviado: informe o e-mail em Ajustes.',
+    falhou: `Não foi possível enviar o aviso para ${esc(para)}. Confira os dados em Ajustes → E-mails automáticos.`
   }[r.aviso] || '';
-  setTimeout(() => abrirModal('Coachee cadastrado', `
-    <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px">${av(d, '', 'width:48px;height:48px;font-size:15px;')}<div><b style="font-size:16px">${esc(d.nome)}</b><div class="mu" style="font-size:13px">${esc(d.email)}</div></div></div>
-    <div class="lista">
-      <div class="item"><div class="tx"><b>Plano Master</b><small class="num">Acesso de ${br(d.inicio)} a ${br(d.fim)} · coach ${esc(d.coachNome || '—')}</small></div></div>
-      <div class="item"><div class="tx"><small>${Dados.demo ? '<span class="chip">demonstração</span> Na demonstração nenhum e-mail é enviado de verdade.' : `<span class="chip ok">enviado</span> ${esc(primeiroNome(d.nome))} recebeu o e-mail para criar a senha.`}</small></div></div>
-      ${linhaAviso && !Dados.demo ? `<div class="item"><div class="tx"><small>${linhaAviso}</small></div></div>` : ''}
-    </div>`, 'Ok', () => {}, { semCancelar: true }), 60);
+  const linhas = [
+    `${esc(d.email)} · plano Master de ${br(d.inicio)} a ${br(d.fim)} · coach ${esc(d.coachNome || '—')}`,
+    Dados.demo ? 'Demonstração: nenhum e-mail é enviado de verdade.' : `${esc(primeiroNome(d.nome))} recebeu o e-mail para criar a senha.`,
+    linhaAviso
+  ].filter(Boolean);
+  toast(`${d.nome} foi cadastrado(a) com sucesso.`, r.aviso === 'falhou' ? 'aviso' : 'ok', linhas.join('<br>'));
 }
 
 // Coach responsável, início e fim só aparecem para coachees. O acesso de administrador extra é só para coach:
@@ -169,13 +168,14 @@ ACOES.pessoa = t => {
       if (id === S.u.id) Object.assign(S.u, d);
       // Coach renomeado: atualiza o nome mostrado aos coachees da carteira.
       if (papel === 'coach') await Promise.all(coachees().filter(c => c.coachId === id).map(c => { c.coachNome = nome; return col('usuarios').salvar(c.id, { coachNome: nome }); }));
-      toast('Cadastro atualizado.');
+      toast(`Cadastro de ${nome} atualizado.`);
     } else {
       const novo = { ...d, email, ativo: true, criado: hoje() };
       const r = await criarPessoa(novo);
-      if (papel === 'coachee') confirmarCadastro(novo, r); else toast(`Acesso criado. ${primeiroNome(nome)} recebe o e-mail para criar a senha.`);
+      if (papel === 'coachee') confirmarCadastro(novo, r); else toast(`${nome} foi cadastrado(a) com sucesso.`, 'ok', `${esc(email)} recebeu o e-mail para criar a senha.`);
     }
-    render();
+    // Depois de salvar, volta para a lista de pessoas.
+    if (S.view !== 'pessoas') ir('pessoas'); else render();
   });
 };
 Object.assign(ACOES, {
@@ -324,7 +324,7 @@ VIEWS.admin.ajustes = () => {
     <div class="card"><h3>Áudios, fotos e arquivos · Cloudinary <span class="chip ${cl.nome && cl.preset ? 'ok' : 'warn'} acao">${cl.nome && cl.preset ? 'configurado' : 'pendente'}</span></h3>
       <p class="mu" style="font-size:12.5px;margin:-4px 0 12px">Plano gratuito. Crie um "upload preset" do tipo <b>Unsigned</b>, limitado a áudio, imagem e PDF.</p>
       ${campo('cl-n', 'Cloud name', cl.nome, 'ex.: programa-ap')}${campo('cl-p', 'Upload preset (unsigned)', cl.preset, 'ex.: plataforma')}</div>
-    <div class="card"><h3>E-mails de aviso · EmailJS <span class="chip ${ej.servico && ej.chave ? 'ok' : 'warn'} acao">${ej.servico && ej.chave ? 'configurado' : 'pendente'}</span></h3>
+    <div class="card"><h3>E-mails automáticos (EmailJS) <span class="chip ${ej.servico && ej.chave ? 'ok' : 'warn'} acao">${ej.servico && ej.chave ? 'configurado' : 'pendente'}</span></h3>
       <p class="mu" style="font-size:12.5px;margin:-4px 0 12px">Plano gratuito: 200 e-mails por mês. O e-mail para criar a senha sai pelo Firebase, fora dessa cota.</p>
       <div class="duas"><div>${campo('ej-s', 'Service ID', ej.servico)}</div><div>${campo('ej-k', 'Public key', ej.chave)}</div>
       <div>${campo('ej-b', 'Modelo de boas-vindas', ej.modeloBoasVindas, 'template_…')}</div><div>${campo('ej-a', 'Modelo de aviso', ej.modeloAviso, 'template_…')}</div></div>
