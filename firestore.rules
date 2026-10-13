@@ -46,7 +46,12 @@ service cloud.firestore {
     // Áudio da mensagem da semana guardado em pedaços (quando não há Cloudinary).
     match /audios/{id} { allow read: if logado(); allow write: if equipe(); }
     // PDFs e outros arquivos da biblioteca guardados em pedaços (quando não há Cloudinary).
-    match /arquivos/{id} { allow read: if logado(); allow write: if equipe(); }
+    // O coachee também envia arquivos próprios (ex.: o relatório do DISC gerado pelo NBM).
+    match /arquivos/{id} {
+      allow read: if logado();
+      allow write: if equipe();
+      allow create: if logado() && request.resource.data.get('dono', '') == request.auth.uid;
+    }
     match /perguntas/{id} { allow read: if logado(); allow write: if equipe(); }
     match /encontros/{id} { allow read: if logado(); allow write: if equipe(); }
     match /materiais/{id} { allow read: if logado(); allow write: if equipe(); }
@@ -76,6 +81,8 @@ service cloud.firestore {
     match /assessments/{id} {
       allow read: if podeLer(resource.data.coacheeId);
       allow create: if dono(request.resource.data.coacheeId);
+      // Depois de registrado, o coachee só pode anexar o arquivo do relatório.
+      allow update: if dono(resource.data.coacheeId) && mantemDono() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['arquivo']);
     }
     match /vitorias/{id} {
       allow read: if podeLer(resource.data.coacheeId);

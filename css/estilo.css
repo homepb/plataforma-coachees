@@ -539,3 +539,37 @@ input[type=color].campo{padding:4px 6px;height:44px;cursor:pointer}
 .cp-nota{color:var(--muted)}.cp-nota.st-atencao,.cp-nota.st-renovar{color:var(--warn)}.cp-nota.st-parado,.cp-nota.st-vencido{color:var(--bad)}
 .eu .troca-eu{margin:0;padding:2px 0 0;color:var(--gold-2);font-size:11.5px;white-space:nowrap}
 @media (max-width:860px){html{scroll-padding-bottom:96px;scroll-padding-top:72px}}
+
+/* ===== Trilha de Liderança (contratada à parte) ===== */
+.aviso-aparte{display:flex;gap:8px;align-items:flex-start;margin:-4px 0 12px;padding:10px 12px;border:1px dashed #4A443A;border-radius:10px;font-size:13px;color:var(--muted)}
+.aviso-aparte svg,.chip svg{flex-shrink:0;margin-top:2px}
+.seg.extra{opacity:.55;margin-left:18px}
+.seg.extra .rot b{display:inline-flex;align-items:center;gap:4px}
+.mv-linha.fim.com-extra .mv-trilho:after{display:block;background:transparent;border-left:2px dashed var(--line);width:0}
+.mv-linha.extra{opacity:.6}
+.mv-linha.extra .mv-trilho:after{display:none}
+.mv-linha.extra .mv-pt{color:var(--muted)}
+button.nav-grupo{background:none;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;width:100%;text-align:left}
+
+/* ===== Relatório dos assessments ===== */
+.relatorio{padding:28px 32px}
+.rel-cab{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:8px}
+.rel-cab h2{font-family:var(--f-display);font-size:32px;font-weight:600;margin:4px 0 2px}
+.rel-cab .sobre{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+.rel-bloco{padding:16px 0;border-bottom:1px solid var(--line)}
+.rel-bloco h3{font-size:18px;margin:0 0 8px}
+.rel-bloco p{margin:0 0 10px;font-size:14px;line-height:1.55}
+.rel-tab{width:100%;border-collapse:collapse;font-size:13.5px}
+.rel-tab th{text-align:left;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+.rel-tab td{padding:7px 8px;border-bottom:1px solid var(--line)}
+.rel-tab .num{text-align:right}
+@page retrato{size:A4 portrait;margin:14mm}
+@media print{
+  .rel-print{page:retrato}
+  .rel-print .relatorio{background:#fff!important;color:#1d1a14;border:0;box-shadow:none;padding:0}
+  .rel-print .relatorio .mu,.rel-print .rel-tab th{color:#5b5548}
+  .rel-print .rel-bloco,.rel-print .rel-tab td,.rel-print .rel-tab th,.rel-print .rel-cab{border-color:#ddd5c5}
+  .rel-print .rel-cab h2,.rel-print .rel-bloco h3{color:#1d1a14}
+  .rel-print .rel-cab .sobre{color:#8E6B2E}
+  body.imprimindo-rel{background:#fff}
+}

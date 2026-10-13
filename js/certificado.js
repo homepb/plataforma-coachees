@@ -3,7 +3,7 @@
 // (config/certificado). O desenho é o Modelo Clássico escolhido no Claude Design (marfim e dourado).
 // No texto, {nome}, {programa}, {inicio}, {fim} e {horas} são trocados pelos dados do coachee.
 
-const CERT_TEXTO = 'concluiu o {programa} – Plano Master, percorrendo as trilhas de Autoconhecimento, Planejamento estratégico, Desenvolvimento de competências comportamentais e Liderança, de {inicio} a {fim}.';
+const CERT_TEXTO = 'concluiu o {programa} – Plano Master, percorrendo as trilhas de Autoconhecimento, Planejamento estratégico e Desenvolvimento de competências comportamentais, de {inicio} a {fim}.';
 const CERT_PADRAO = { titulo: 'Certificado de Conclusão', texto: CERT_TEXTO, horas: '', cidade: '', cor: '', cargo: 'Coach responsável', assinaturas: {} };
 const CERT_COR = '#B8914A';
 const certCfg = () => ({ ...CERT_PADRAO, ...(C.cert || {}) });
@@ -48,7 +48,7 @@ const concluiu = c => !R.proximo(C.L, c.D);
 
 /* ----- Coachee: o próprio certificado ----- */
 VIEWS.coachee.certificado = () => {
-  if (R.proximo(C.L, C.D)) return `<div class="card"><p>O certificado é liberado ao concluir as quatro trilhas.</p><button class="bt bt-linha" data-ir="jornada">Voltar</button></div>`;
+  if (R.proximo(C.L, C.D)) return `<div class="card"><p>O certificado é liberado ao concluir as Trilhas I, II e III.</p><button class="bt bt-linha" data-ir="jornada">Voltar</button></div>`;
   return `<div class="topo"><div><div class="sobre">Jornada concluída</div><h1>Certificado</h1></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt bt-ouro" data-acao="imprimir-cert">Salvar em PDF</button><button class="bt bt-fantasma" data-ir="jornada">← Minha jornada</button></div></div>
   ${htmlCertificado(S.u, C.D)}
   <p class="mu nao-imprimir" style="font-size:12.5px;text-align:center;margin-top:12px">Na janela de impressão, escolha "Salvar como PDF", papel A4 e orientação paisagem.</p>`;
@@ -59,7 +59,7 @@ VIEWS.coach.certificado = () => {
   const cfg = S.certRascunho || certCfg(); const minhaAss = (cfg.assinaturas || {})[S.u.id];
   const carteira = (C.carteira || []).slice().sort((a, b) => a.u.nome.localeCompare(b.u.nome));
   const ver = S.p && daCarteira(S.p); const alvo = ver ? ver.u : certExemplo();
-  return `<div class="topo"><div><div class="sobre">Gerado automaticamente para cada coachee que conclui as quatro trilhas</div><h1>Certificado</h1></div></div>
+  return `<div class="topo"><div><div class="sobre">Gerado automaticamente para cada coachee que conclui as Trilhas I, II e III</div><h1>Certificado</h1></div></div>
   <div class="ct-config">
     <form class="card" id="form-cert">
       <h3>Modelo Clássico</h3>

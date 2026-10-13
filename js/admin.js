@@ -145,6 +145,7 @@ ACOES.pessoa = t => {
       </div>
       ${id && u.papel === 'coachee' ? `<button type="button" class="bt bt-linha bt-sm" data-acao="renovar" data-id="${u.id}" style="margin-bottom:12px">Renovar por mais 12 meses</button>`
         : '<p class="mu" style="font-size:12.5px;margin:-4px 0 12px">O acesso do coachee vai até 12 meses depois do início.</p>'}
+      <label style="display:flex;gap:10px;align-items:center;margin:2px 0 12px"><input type="checkbox" class="ck" id="pe-lid" ${u.lideranca ? 'checked' : ''}> Contratou a Trilha IV · Liderança (vendida à parte)</label>
     </div>
     <div id="pe-linha-admin" ${u.papel === 'coach' ? '' : 'hidden'}><label style="display:flex;gap:10px;align-items:center;margin:2px 0 10px"><input type="checkbox" class="ck" id="pe-admin" ${u.admin ? 'checked' : ''}> Também tem acesso de administrador</label></div>
     ${id ? `<label style="display:flex;gap:10px;align-items:center;margin:2px 0 10px"><input type="checkbox" class="ck" id="pe-ativo" ${u.ativo !== false ? 'checked' : ''}> Acesso ativo</label>`
@@ -158,7 +159,7 @@ ACOES.pessoa = t => {
     if (id === S.u.id && papel !== 'admin' && !d.admin) { toast(papel === 'coachee' ? 'Coachee não pode ser administrador. Para participar como coachee, cadastre um outro e-mail.' : 'Você não pode tirar o seu próprio acesso de administrador.'); return false; }
     if (papel === 'coachee') {
       const co = cs.find(c => c.id === valor('pe-coach') && c.id !== id); if (!co) { toast('Escolha o coach responsável (cadastre um coach antes, se preciso).'); return false; }
-      Object.assign(d, { coachId: co.id, coachNome: co.nome, inicio: valor('pe-ini') || hoje() });
+      Object.assign(d, { coachId: co.id, coachNome: co.nome, inicio: valor('pe-ini') || hoje(), lideranca: $('#pe-lid').checked });
       d.fim = id && u.papel === 'coachee' ? (valor('pe-fim') || R.fimDoAcesso(d.inicio)) : R.fimDoAcesso(d.inicio);
     }
     if (id) {

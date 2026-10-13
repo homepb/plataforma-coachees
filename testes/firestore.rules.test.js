@@ -171,6 +171,16 @@ test('arquivos da biblioteca: equipe envia e apaga, todos os logados abrem', asy
   await assertSucceeds(db('vini').doc('arquivos/a1_0').delete());
 });
 
+test('coachee anexa o próprio relatório do DISC e não altera o resultado', async () => {
+  await assertSucceeds(db('ana').doc('arquivos/r1_0').set({ arqId: 'r1', i: 0, n: 1, nome: 'disc.pdf', dono: 'ana', parte: 'JVBERi0=' }));
+  await assertFails(db('ana').doc('arquivos/r2_0').set({ arqId: 'r2', i: 0, n: 1, nome: 'x.pdf', dono: 'bruno', parte: 'x' }));
+  await assertFails(db('ana').doc('arquivos/r1_0').update({ parte: 'y' }));
+  await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('assessments/as1').set({ coacheeId: 'ana', tipo: 'disc', data: '2026-10-01', r: { D: 40 } }));
+  await assertSucceeds(db('ana').doc('assessments/as1').update({ arquivo: 'arquivo:r1:1:disc.pdf' }));
+  await assertFails(db('ana').doc('assessments/as1').update({ r: { D: 90 } }));
+  await assertFails(db('bruno').doc('assessments/as1').update({ arquivo: 'x' }));
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));

@@ -130,7 +130,7 @@ const lerRefArquivo = ref => { const [id, n, ...nome] = String(ref).slice(ARQ_FS
 async function guardarArquivo(arquivo) {
   if (arquivo.size > ARQ_MAX) throw new Error(`Este arquivo tem ${(arquivo.size / 1e6).toFixed(1).replace('.', ',')} MB e o limite é 5 MB. Para arquivos maiores, coloque o arquivo no Google Drive (compartilhado com "qualquer pessoa com o link") e cole o link no campo.`);
   const id = `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
-  const n = await guardarPartes('arquivos', arquivo, id, { arqId: id, nome: arquivo.name });
+  const n = await guardarPartes('arquivos', arquivo, id, { arqId: id, nome: arquivo.name, dono: S.u.id });
   return `${ARQ_FS}${id}:${n}:${encodeURIComponent(arquivo.name)}`;
 }
 async function apagarArquivo(ref) {
@@ -174,6 +174,9 @@ async function carregarConteudo() {
     col('perguntas').listar(), col('encontros').listar(), col('materiais').listar(), col('fornecedores').listar()]);
   C.cfg = cfg || {}; C.cert = cert || {};
   C.trilhas = porId(trilhas); C.itens = porId(itens);
+  // Liderança (contratada à parte): marcada aqui também para bancos instalados antes dessa regra.
+  const tp = C.trilhas[CONTEUDO.TRILHA_A_PARTE];
+  if (tp) { tp.aParte = true; tp.liberada = !!(S.u && S.u.lideranca); }
   C.L = Regras.lista(C.trilhas, C.itens);
   C.mensagens = mensagens.sort(recente); C.perguntas = perguntas.sort(recente);
   C.encontros = encontros.sort((a, b) => a.data.localeCompare(b.data));
@@ -235,7 +238,7 @@ const NAV = {
   coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino'], ['certificado', 'Certificado']],
   admin: [['painel', 'Como estamos'], ['pessoas', 'Pessoas'], ['planos', 'Planos'], ['entradas', 'Novas entradas'], ['ajustes', 'Ajustes']]
 };
-const ATIVO = { coachee: { item: 'jornada', questionario: 'quem', certificado: 'jornada' }, coach: { ficha: 'pessoas' }, admin: {} };
+const ATIVO = { coachee: { item: 'jornada', questionario: 'quem', certificado: 'jornada', relatorio: 'quem' }, coach: { ficha: 'pessoas' }, admin: {} };
 const IC = {
   painel: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
   jornada: '<path d="M4 5h16v11H4zM8 20h8M12 16v4"/><path d="M10 8.5v4l3.5-2z"/>',
@@ -258,7 +261,10 @@ const nomePrograma = () => C.cfg.nome || 'Programa de Alta Performance';
 const botaoWhats = (cls = '') => C.cfg.whatsapp ? `<a class="bt bt-wa ${cls}" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">Falar no Grupo Mentoria</a>` : '';
 // Acesso discreto ao grupo no menu (o botão de destaque fica no cartão Grupo Mentoria, em Comunidade).
 const IC_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>';
-const linkGrupo = () => urlSegura(C.cfg.whatsapp) ? `<a class="nav-grupo" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">${IC_WA}Grupo Mentoria</a>` : '';
+// Sempre visível para o coachee; sem o link cadastrado em Ajustes, avisa em vez de abrir.
+const linkGrupo = () => urlSegura(C.cfg.whatsapp) ? `<a class="nav-grupo" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">${IC_WA}Grupo Mentoria</a>`
+  : `<button type="button" class="nav-grupo" data-acao="grupo-sem-link">${IC_WA}Grupo Mentoria</button>`;
+ACOES['grupo-sem-link'] = () => toast('O link do Grupo Mentoria ainda não foi cadastrado. Avise o seu coach.', 'aviso');
 
 // Celular: menu fixo embaixo com 4 telas principais e "Mais" (o resto, grupo, troca de perfil e sair).
 const CELULAR = '(max-width:860px)';

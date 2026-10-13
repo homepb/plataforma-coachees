@@ -33,16 +33,20 @@ const Regras = (() => {
     });
   }
   const feito = (D, id) => !!(D.progresso[id] && D.progresso[id].ok);
-  const proximo = (L, D) => L.find(i => !feito(D, i.id)) || null; // RN-02
+  // A Trilha de Liderança é contratada à parte: fica fora do caminho até o certificado (Trilhas I a III)
+  // e bloqueada para quem não a contratou (t.liberada).
+  const nucleo = L => L.filter(i => !i.t.aParte);
+  const proximo = (L, D) => nucleo(L).find(i => !feito(D, i.id)) || null; // RN-02
   // RN-01: na trilha sequencial, um passo só abre quando os anteriores estão feitos.
-  const acessivel = (L, D, item) => !item.t.sequencial || L.filter(i => i.t.id === item.t.id && i.k < item.k).every(i => feito(D, i.id));
+  const acessivel = (L, D, item) => (!item.t.aParte || !!item.t.liberada)
+    && (!item.t.sequencial || L.filter(i => i.t.id === item.t.id && i.k < item.k).every(i => feito(D, i.id)));
   function statusTrilha(L, D, tid) {
     const its = L.filter(i => i.t.id === tid);
     if (its.length && its.every(i => feito(D, i.id))) return 'feito';
     const p = proximo(L, D);
     return (p && p.t.id === tid) || its.some(i => feito(D, i.id)) ? 'atual' : 'aberta';
   }
-  const pct = (L, D) => L.length ? Math.round(L.filter(i => feito(D, i.id)).length / L.length * 100) : 0;
+  const pct = (L, D) => { const N = nucleo(L); return N.length ? Math.round(N.filter(i => feito(D, i.id)).length / N.length * 100) : 0; };
 
   // RN-03: a meta é a resposta do passo com chave 'meta'.
   function meta(L, D) {
@@ -119,6 +123,13 @@ const Regras = (() => {
     let c = 0; for (let i = s.length - 2; i >= 0 && s[i].n > 0; i--) c++;
     return c;
   }
+  // Dias seguidos em movimento, até hoje. Hoje ainda sem atividade não quebra a sequência (o dia não acabou).
+  function diasSeguidos(L, D, u, h) {
+    const dias = new Set(percurso(L, D, u).filter(e => !e.inicio).map(e => e.data.slice(0, 10)));
+    let d = dias.has(h) ? h : somaDias(h, -1); let c = 0;
+    while (dias.has(d)) { c++; d = somaDias(d, -1); }
+    return c;
+  }
   // A semana atual já tem movimento (vai somar na sequência quando fechar).
   const semanaAtiva = (L, D, u, h) => semanas(L, D, u, h, 1)[0].n > 0;
 
@@ -175,9 +186,9 @@ const Regras = (() => {
     return lista.sort((a, b) => a.ordem - b.ordem);
   }
 
-  return { iso, hoje, somaDias, somaMeses, dias, segunda, fimDoAcesso, lista, feito, proximo, acessivel, statusTrilha, pct,
+  return { iso, hoje, somaDias, somaMeses, dias, segunda, fimDoAcesso, lista, nucleo, feito, proximo, acessivel, statusTrilha, pct,
     meta, areasInicio, atrasada, paradas, paradaAberta, proximaParada, historico, liberado, resultadoQuest,
-    percurso, semanas, sequencia, semanaAtiva, insignias, situacao, precisam };
+    percurso, semanas, sequencia, semanaAtiva, diasSeguidos, insignias, situacao, precisam };
 })();
 
 if (typeof module !== 'undefined') module.exports = Regras;

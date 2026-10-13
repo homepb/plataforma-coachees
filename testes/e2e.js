@@ -54,6 +54,15 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       const titulos = [...lista.querySelectorAll('.item .tx b')].map(b => b.textContent);
       return prox.length > 1 && prox.every((d, i) => !i || prox[i - 1] <= d) && JSON.stringify(titulos) === JSON.stringify(esperado) && lista.textContent.indexOf('Próximos') < lista.textContent.indexOf('Já aconteceram');
     }), 'encontros do mais próximo para o mais distante, depois os passados');
+    ok(!(await texto()).includes('Fornecedores'), 'Comunidade sem a seção de fornecedores');
+    await ir('jornada');
+    ok((await texto()).includes('contratada à parte') && await p.evaluate(() => { const lid = C.L.filter(i => i.t.aParte); return lid.length > 0 && lid.every(i => !Regras.acessivel(C.L, C.D, i)); }), 'Trilha de Liderança bloqueada (contratada à parte)');
+    ok(await p.evaluate(() => Regras.nucleo(C.L).length === 16), 'certificado conta só as Trilhas I a III');
+    await ir('painel'); ok(/dias? seguidos? em movimento/.test(await texto()), 'Hoje mostra dias seguidos em movimento');
+    ok(await p.$('.nav-grupo, .nav-baixo') !== null, 'acesso ao Grupo Mentoria no menu');
+    await ir('quem'); await p.click('[data-ir="relatorio"]'); await p.waitForTimeout(200);
+    ok((await texto()).includes('Relatório dos assessments') && await p.$('.relatorio .rel-tab') && await p.$('[data-acao="imprimir-relatorio"]'), 'relatório dos assessments para ver e salvar em PDF');
+    await ir('comunidade');
     ok(!!(await p.$('#grupo-mentoria a.bt-wa[href^="https://chat.whatsapp.com"]')) && (await p.textContent('#grupo-mentoria')).includes('Falar no Grupo Mentoria'), 'Comunidade tem o botão do Grupo Mentoria no WhatsApp');
     for (const v of ['painel', 'jornada', 'quem', 'evolucao', 'pratica', 'comunidade']) {
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coachee: ${v} abre`);

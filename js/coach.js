@@ -176,7 +176,7 @@ VIEWS.coach.ficha = () => {
     ${ped.map(p => `<div class="card ouro" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="rotulinho ouro-tx">Pedido de sessão individual · ${p.status === 'pago' ? 'pago' : 'aguardando pagamento'}</div><b>"${esc(p.motivo)}"</b><div class="mu" style="font-size:12.5px">Preferência: ${esc(p.horario)} · pedido em ${br(p.data)}</div></div>${p.status === 'pago' ? `<button class="bt bt-ouro bt-sm" data-acao="agendar-sessao" data-id="${p.id}">Marcar como agendada</button>` : ''}</div>`).join('')}
     <div class="grade g4" style="margin-bottom:16px">
       <div class="card kpi"><div class="v num">${pc}<small>%</small></div><div class="l">${prox ? `Trilha ${esc(prox.t.n)} em andamento` : 'Jornada concluída'}</div><div class="barra" style="margin-top:10px"><b style="width:${pc}%"></b></div></div>
-      <div class="card kpi"><div class="v num">${R.sequencia(C.L, D, u, h)}</div><div class="l">semanas seguidas em movimento</div></div>
+      <div class="card kpi"><div class="v num">${R.diasSeguidos(C.L, D, u, h)}</div><div class="l">dias seguidos em movimento</div></div>
       <div class="card kpi"><div class="v num">${D.acoes.filter(a => !a.ok).length}</div><div class="l">ações em aberto ${D.acoes.some(a => R.atrasada(a, h)) ? `<span class="chip bad">${D.acoes.filter(a => R.atrasada(a, h)).length} atrasada(s)</span>` : ''}</div></div>
       <div class="card kpi"><div class="v num">${rot === null ? '—' : rot}<small>${rot === null ? '' : '%'}</small></div><div class="l">das rotinas diárias feitas nos últimos 7 dias</div></div>
     </div>
@@ -204,7 +204,7 @@ VIEWS.coach.ficha = () => {
     const ins = R.insignias(C.L, D, u, h).filter(i => i.ok);
     const cam = R.percurso(C.L, D, u).filter(e => !e.rotina).slice(0, 10);
     corpo = `
-    <div class="card" style="margin-bottom:16px"><h3>Insígnias e ritmo <span class="mu acao num" style="font-size:12px;font-weight:500">${ins.length} de 15 · ${R.sequencia(C.L, D, u, h)} semanas seguidas</span></h3>${ins.length ? `<div class="insignias">${ins.map(i => `<div class="insig"><span class="med">${esc(i.g)}</span><b>${esc(i.t)}</b></div>`).join('')}</div>` : '<div class="vazio">Nenhuma insígnia ainda.</div>'}</div>
+    <div class="card" style="margin-bottom:16px"><h3>Insígnias e ritmo <span class="mu acao num" style="font-size:12px;font-weight:500">${ins.length} de 15 · ${plural(R.diasSeguidos(C.L, D, u, h), 'dia seguido', 'dias seguidos')} em movimento</span></h3>${ins.length ? `<div class="insignias">${ins.map(i => `<div class="insig"><span class="med">${esc(i.g)}</span><b>${esc(i.t)}</b></div>`).join('')}</div>` : '<div class="vazio">Nenhuma insígnia ainda.</div>'}</div>
     <div class="card" style="margin-bottom:16px"><h3>Paradas trimestrais</h3><div class="lista">
       ${Pp.map(p => `<div class="item" style="align-items:flex-start">${caixaData(p.data)}<div class="tx"><b>Parada ${p.n} · ${p.n * 3} meses</b>${p.reg ? CONTEUDO.PERGUNTAS_PARADA.map((q, k) => `<small style="display:block"><span class="mu">${esc(q)}</span> ${esc(p.reg.respostas[k])}</small>`).join('') + seuComentario(D, 'parada:' + p.n) : `<small>${p.st === 'aberto' ? 'Aberta, aguardando o registro do coachee' : `Abre em ${br(p.abre)}`}</small>`}</div>${p.reg ? botaoComentar(u.id, 'parada:' + p.n, D) : p.st === 'aberto' ? `<button class="bt bt-fantasma bt-sm" data-acao="lembrar" data-c="${u.id}">Lembrar</button>` : ''}</div>`).join('')}
     </div></div>
@@ -331,9 +331,7 @@ VIEWS.coach.ensino = () => {
     </div>`; }).join('')}
   </div>
   <div class="card" style="margin-top:16px"><h3>Biblioteca <button class="bt bt-linha bt-sm acao" data-acao="material">+ Material</button></h3>
-    <div class="lista">${C.materiais.map(m => `<div class="item"><span class="chip ouro" style="min-width:86px;justify-content:center">${esc(m.tipo)}</span><div class="tx"><b>${esc(m.titulo)}</b><small>${esc(m.descricao)}</small></div>${botaoMaterial(m) || '<span class="chip warn">sem arquivo</span>'}<button class="bt bt-fantasma bt-sm" data-acao="material" data-id="${m.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum material.</div>'}</div></div>
-  <div class="card" style="margin-top:16px"><h3>Fornecedores e contatos indicados <button class="bt bt-linha bt-sm acao" data-acao="fornecedor">+ Fornecedor</button></h3>
-    <div class="lista">${C.fornecedores.map(f => `<div class="item"><span class="chip">${esc(f.area)}</span><div class="tx"><b>${esc(f.titulo)}</b><small>${esc(f.descricao)}</small></div><button class="bt bt-fantasma bt-sm" data-acao="fornecedor" data-id="${f.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum fornecedor.</div>'}</div></div>`;
+    <div class="lista">${C.materiais.map(m => `<div class="item"><span class="chip ouro" style="min-width:86px;justify-content:center">${esc(m.tipo)}</span><div class="tx"><b>${esc(m.titulo)}</b><small>${esc(m.descricao)}</small></div>${botaoMaterial(m) || '<span class="chip warn">sem arquivo</span>'}<button class="bt bt-fantasma bt-sm" data-acao="material" data-id="${m.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum material.</div>'}</div></div>`;
 };
 
 // Gravador de áudio do navegador (MediaRecorder): o coach grava sem instalar nada.

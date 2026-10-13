@@ -107,3 +107,23 @@ test('resultado do questionário: média por dimensão em 0–100%', () => {
   const r = R.resultadoQuest(q, resp);
   assert.equal(r['Autoconsciência'], 50); assert.equal(r['Empatia'], 100);
 });
+
+test('Liderança à parte: fica bloqueada e o certificado sai ao concluir as Trilhas I a III', () => {
+  const N = R.nucleo(L); assert.equal(N.length, 16); assert.ok(N.every(i => i.t.id !== 't4'));
+  const D = vazio(); feito(D, N.map(i => i.id));
+  assert.equal(R.proximo(L, D), null); assert.equal(R.pct(L, D), 100);
+  const lid = L.find(i => i.t.id === 't4'); assert.equal(R.acessivel(L, D, lid), false);
+  const L2 = R.lista({ ...CONTEUDO.trilhas, t4: { ...CONTEUDO.trilhas.t4, liberada: true } }, CONTEUDO.itens);
+  assert.equal(R.acessivel(L2, D, L2.find(i => i.t.id === 't4')), true);
+});
+
+test('dias seguidos em movimento', () => {
+  const D = vazio();
+  D.vitorias.push({ data: '2026-10-11', texto: 'a' }, { data: '2026-10-12', texto: 'b' }, { data: '2026-10-13', texto: 'c' });
+  assert.equal(R.diasSeguidos(L, D, u, '2026-10-13'), 3);
+  // Hoje ainda sem atividade não quebra a sequência; um dia inteiro sem nada, sim.
+  assert.equal(R.diasSeguidos(L, D, u, '2026-10-14'), 3);
+  assert.equal(R.diasSeguidos(L, D, u, '2026-10-15'), 0);
+  const D1 = vazio(); D1.vitorias.push({ data: '2026-10-13', texto: 'x' });
+  assert.equal(R.diasSeguidos(L, D1, u, '2026-10-13'), 1);
+});

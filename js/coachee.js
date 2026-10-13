@@ -7,8 +7,6 @@ const proxEncontro = () => C.encontros.find(e => e.data >= hoje()) || null;
 const metaAtual = () => R.meta(C.L, C.D);
 // A meta pode ser escrita já no "Hoje", antes de liberar a Trilha II: as respostas ficam guardadas no passo da meta
 // (sem concluí-lo) e aparecem preenchidas quando o coachee chegar a ele. A sequência da trilha não muda.
-// Explica por que a semana atual ainda não aparece na sequência.
-const notaSemana = (seq, h) => R.semanaAtiva(C.L, C.D, S.u, h) ? `<div class="mu" style="font-size:12px;margin-top:4px">${seq ? '+ esta semana, que entra na conta no domingo' : 'Sua semana já está em movimento: ela entra na conta no domingo.'}</div>` : '';
 const passoMeta = () => C.L.find(i => i.chave === 'meta');
 function botaoMeta(rotulo, classe, estilo = '') {
   const pm = passoMeta(); if (!pm) return '';
@@ -56,7 +54,7 @@ async function posRenderCoachee() {
     if (!primeiraVez) { celebrando = true; setTimeout(() => celebrar(novas), 400); }
   }
   const prox = R.proximo(C.L, C.D);
-  const resumo = { pct: R.pct(C.L, C.D), trilha: prox ? prox.t.n : 'fim', atrasadas: C.D.acoes.filter(a => R.atrasada(a, h)).length, semanas: R.sequencia(C.L, C.D, S.u, h) };
+  const resumo = { pct: R.pct(C.L, C.D), trilha: prox ? prox.t.n : 'fim', atrasadas: C.D.acoes.filter(a => R.atrasada(a, h)).length, semanas: R.sequencia(C.L, C.D, S.u, h), dias: R.diasSeguidos(C.L, C.D, S.u, h) };
   if (JSON.stringify(resumo) !== JSON.stringify(S.u.resumo || {})) { S.u.resumo = resumo; col('usuarios').salvar(S.u.id, { resumo }).catch(falha); }
 }
 
@@ -82,10 +80,15 @@ async function marcarOuvida(msgId) {
 
 /* ---------- mapa da jornada (RF-14) ---------- */
 // No celular, a jornada vira uma linha vertical: uma trilha abaixo da outra; a atual mostra o passo anterior, o atual e o próximo.
+// Trilha de Liderança: contratada à parte, aparece depois do certificado, bloqueada para quem não contratou.
+const trancada = t => !!(t.aParte && !t.liberada);
+const trilhasOrdem = () => Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
 function mapaVertical() {
-  const L = C.L, D = C.D; const a = R.proximo(L, D); const feitos = L.filter(i => R.feito(D, i.id)).length;
-  const trilhas = Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
-  const linhas = trilhas.map(t => {
+  const L = C.L, D = C.D; const a = R.proximo(L, D); const N = R.nucleo(L); const feitos = N.filter(i => R.feito(D, i.id)).length;
+  const linhaExtra = t => { const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length;
+    return `<div class="mv-linha extra ${trancada(t) ? 'trancada' : ''}"><div class="mv-trilho"><span class="mv-pt">${trancada(t) ? LOCK : f === its.length ? '✓' : ''}</span></div>
+      <div class="mv-conteudo"><b>Trilha ${esc(t.n)} · ${esc(t.titulo)}</b><span class="mu">${trancada(t) ? 'Contratada à parte · fale com o seu coach' : `Contratada · ${f} de ${its.length}`}</span></div></div>`; };
+  const linhas = trilhasOrdem().filter(t => !t.aParte).map(t => {
     const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length;
     const st = R.statusTrilha(L, D, t.id); const aqui = a && a.t.id === t.id;
     const estado = st === 'feito' ? `<span class="ok-tx">Concluída · ${f} de ${its.length}</span>` : aqui ? `<span class="ouro-tx">Você está aqui · ${f} de ${its.length}</span>` : `<span class="mu">${t.sequencial ? 'Passo a passo' : 'Aberta'} · ${f} de ${its.length}</span>`;
@@ -98,24 +101,28 @@ function mapaVertical() {
     return `<div class="mv-linha ${st === 'feito' ? 'feito' : aqui ? 'atual' : ''}"><div class="mv-trilho"><span class="mv-pt">${st === 'feito' ? '✓' : ''}</span></div>
       <div class="mv-conteudo"><b>Trilha ${esc(t.n)} · ${esc(t.titulo)}</b>${estado}${detalhe}</div></div>`;
   }).join('');
-  return `<div class="card mapa-v" style="margin-bottom:16px"><div class="mu" style="font-size:13.5px;margin-bottom:12px">${feitos} de ${L.length} concluídos · ${a ? `faltam ${L.length - feitos} para o certificado` : 'jornada completa'}</div>
-    ${linhas}<div class="mv-linha fim"><div class="mv-trilho"><span class="mv-pt">★</span></div><div class="mv-conteudo"><b>Certificado</b>${a ? '<span class="mu">Liberado ao concluir as quatro trilhas</span>' : '<button class="bt bt-ouro bt-sm" data-ir="certificado" style="margin-top:6px">Ver certificado</button>'}</div></div></div>`;
+  const extras = trilhasOrdem().filter(t => t.aParte).map(linhaExtra).join('');
+  return `<div class="card mapa-v" style="margin-bottom:16px"><div class="mu" style="font-size:13.5px;margin-bottom:12px">${feitos} de ${N.length} concluídos · ${a ? `faltam ${N.length - feitos} para o certificado` : 'certificado liberado'}</div>
+    ${linhas}<div class="mv-linha fim ${extras ? 'com-extra' : ''}"><div class="mv-trilho"><span class="mv-pt">★</span></div><div class="mv-conteudo"><b>Certificado</b>${a ? '<span class="mu">Liberado ao concluir as Trilhas I, II e III</span>' : '<button class="bt bt-ouro bt-sm" data-ir="certificado" style="margin-top:6px">Ver certificado</button>'}</div></div>${extras}</div>`;
 }
 
 function mapa() {
   if (celular()) return mapaVertical();
-  const L = C.L, D = C.D; const a = R.proximo(L, D); const feitos = L.filter(i => R.feito(D, i.id)).length;
-  const trilhas = Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
+  const L = C.L, D = C.D; const a = R.proximo(L, D); const N = R.nucleo(L); const feitos = N.filter(i => R.feito(D, i.id)).length;
+  const extras = trilhasOrdem().filter(t => t.aParte).map(t => { const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length;
+    return `<div class="seg extra ${trancada(t) ? 'trancada' : ''}" style="flex:${its.length} 1 0"><div class="trilho" style="--p:${Math.round(f / its.length * 100)}%">${its.map(it => `<span class="pt ${R.feito(D, it.id) ? 'ok' : ''}"></span>`).join('')}</div>
+      <div class="rot"><b>${trancada(t) ? LOCK + ' ' : ''}Trilha ${esc(t.n)} · à parte</b><small>${esc(t.titulo)}</small></div></div>`; }).join('');
   return `<div class="card" style="margin-bottom:16px">
-    <div class="mapa-wrap"><div class="mapa" role="img" aria-label="Mapa da jornada: ${feitos} de ${L.length} itens concluídos${a ? `, você está em ${esc(a.titulo)}` : ''}">
-      ${trilhas.map(t => { const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length; const st = R.statusTrilha(L, D, t.id);
+    <div class="mapa-wrap"><div class="mapa" role="img" aria-label="Mapa da jornada: ${feitos} de ${N.length} itens concluídos${a ? `, você está em ${esc(a.titulo)}` : ''}">
+      ${trilhasOrdem().filter(t => !t.aParte).map(t => { const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length; const st = R.statusTrilha(L, D, t.id);
         return `<div class="seg ${st}" style="flex:${its.length} 1 0">
           <div class="trilho" style="--p:${st === 'feito' ? 100 : Math.round((f + (st === 'atual' ? .5 : 0)) / its.length * 100)}%">${its.map(it => { const aqui = a && a.id === it.id;
             return `<span class="pt ${R.feito(D, it.id) ? 'ok' : aqui ? 'agora' : ''}">${aqui ? `<span class="eu-mapa">${av(S.u)}</span>` : ''}</span>`; }).join('')}</div>
           <div class="rot"><b>Trilha ${esc(t.n)}</b><small>${esc(t.titulo)}</small></div></div>`; }).join('')}
       <div class="seg-fim"><div class="trilho"><span class="pt fim ${a ? '' : 'ok'}">★</span></div><div class="rot"><b>Certificado</b></div></div>
+      ${extras}
     </div></div>
-    <div class="mapa-leg">${a ? `<span>Você está aqui: <b class="ouro-tx">Trilha ${esc(a.t.n)} · ${esc(a.titulo)}</b></span><span class="mu num">${feitos} de ${L.length} · faltam ${L.length - feitos} para o certificado</span>` : '<b class="ouro-tx">Jornada completa. Parabéns!</b>'}</div>
+    <div class="mapa-leg">${a ? `<span>Você está aqui: <b class="ouro-tx">Trilha ${esc(a.t.n)} · ${esc(a.titulo)}</b></span><span class="mu num">${feitos} de ${N.length} · faltam ${N.length - feitos} para o certificado</span>` : '<b class="ouro-tx">Trilhas I a III concluídas. Seu certificado está liberado!</b>'}</div>
   </div>`;
 }
 
@@ -144,24 +151,24 @@ VIEWS.coachee.painel = () => {
   const L = C.L, D = C.D, h = hoje(); const prox = R.proximo(L, D); const m = metaAtual();
   const pend = D.acoes.filter(a => !a.ok).slice(0, 6);
   const diarias = D.rotinas.filter(r => r.freq === 'diaria');
-  const seq = R.sequencia(L, D, S.u, h);
+  const dias = R.diasSeguidos(L, D, S.u, h);
   const enc = C.encontros.find(e => e.data >= h);
-  const feitos = L.filter(i => R.feito(D, i.id)).length; const pc = L.length ? feitos / L.length : 0;
+  const N = R.nucleo(L); const feitos = N.filter(i => R.feito(D, i.id)).length; const pc = N.length ? feitos / N.length : 0;
   const hora = new Date().getHours(); const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
   // Anel de progresso da jornada (circunferência de 2πr com r = 50).
-  const anel = `<svg class="anel" viewBox="0 0 120 120" role="img" aria-label="${Math.round(pc * 100)}% da jornada concluída"><circle cx="60" cy="60" r="50" class="fundo"/><circle cx="60" cy="60" r="50" class="valor" style="stroke-dasharray:${(pc * 314.16).toFixed(1)} 314.16"/><text x="60" y="60" class="pct">${Math.round(pc * 100)}%</text><text x="60" y="80" class="sub">${feitos} de ${L.length}</text></svg>`;
+  const anel = `<svg class="anel" viewBox="0 0 120 120" role="img" aria-label="${Math.round(pc * 100)}% da jornada concluída"><circle cx="60" cy="60" r="50" class="fundo"/><circle cx="60" cy="60" r="50" class="valor" style="stroke-dasharray:${(pc * 314.16).toFixed(1)} 314.16"/><text x="60" y="60" class="pct">${Math.round(pc * 100)}%</text><text x="60" y="80" class="sub">${feitos} de ${N.length}</text></svg>`;
   return `
   <div class="topo"><div style="display:flex;gap:16px;align-items:center"><label class="foto-perfil" title="${S.u.foto ? 'Trocar a foto' : 'Adicionar sua foto'}">${av(S.u)}<input type="file" accept="image/*" data-muda="foto" hidden><span class="cam">${S.u.foto ? 'trocar' : '+ foto'}</span></label>
     <div><div class="sobre">${hojeExtenso()}</div><h1>${saudacao}, ${esc(primeiroNome(S.u.nome))}</h1></div></div>
-    <button class="link-discreto ritmo" data-ir="evolucao"><span class="chama num">${seq}</span>${plural(seq, 'semana seguida', 'semanas seguidas')} em movimento</button></div>
+    <button class="link-discreto ritmo" data-ir="evolucao"><span class="chama num">${dias}</span>${dias === 1 ? 'dia' : 'dias'} seguido${dias === 1 ? '' : 's'} em movimento</button></div>
 
   ${prox ? `<section class="card proximo-passo">
     <div class="pp-texto"><div class="pp-rot">Seu próximo passo</div>
       <h2>${esc(prox.titulo)}</h2>
       <div class="pp-sub">Trilha ${esc(prox.t.n)} · ${esc(prox.t.titulo)} · ${prox.tipo === 'aula' ? `aula · ${prox.dur || 15} min` : `passo ${prox.k + 1} de ${prox.total}`}</div>
       <div class="pp-botoes"><button class="bt bt-ouro" data-ir="item" data-p="${prox.id}">${prox.tipo === 'aula' ? 'Assistir agora' : 'Continuar'}</button><button class="bt bt-linha" data-ir="jornada">Ver a jornada</button></div></div>
-    <div class="pp-anel">${anel}<small>faltam ${L.length - feitos} para o certificado</small></div></section>`
-  : `<section class="card proximo-passo"><div class="pp-texto"><div class="pp-rot">Jornada completa</div><h2>Parabéns! Você concluiu as quatro trilhas.</h2>
+    <div class="pp-anel">${anel}<small>faltam ${N.length - feitos} para o certificado</small></div></section>`
+  : `<section class="card proximo-passo"><div class="pp-texto"><div class="pp-rot">Certificado liberado</div><h2>Parabéns! Você concluiu as Trilhas I, II e III.</h2>
       <div class="pp-botoes"><button class="bt bt-ouro" data-ir="certificado">Ver meu certificado</button></div></div><div class="pp-anel">${anel}</div></section>`}
 
   ${m ? `<div class="meta-faixa"><span class="mf-rot">Sua meta para 2027</span><span class="mf-txt">${esc(m.meta)}</span>${botaoMeta('Rever', 'link-discreto mf-link')}</div>`
@@ -185,14 +192,10 @@ VIEWS.coachee.painel = () => {
 VIEWS.coachee.jornada = () => {
   const L = C.L, D = C.D; const a = R.proximo(L, D);
   const trilhas = Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
-  return `
-  <div class="topo"><div><div class="sobre">Sua jornada de carreira</div><h1>Minha jornada</h1><div class="sub">A Trilha II segue passo a passo. As outras ficam abertas: a ordem é só uma sugestão.</div></div></div>
-  ${mapa()}
-  <div class="grade">
-    ${trilhas.map(t => { const its = L.filter(i => i.t.id === t.id); const st = R.statusTrilha(L, D, t.id); const f = its.filter(i => R.feito(D, i.id)).length;
+  const cartao = t => { const its = L.filter(i => i.t.id === t.id); const st = R.statusTrilha(L, D, t.id); const f = its.filter(i => R.feito(D, i.id)).length;
       return `<section class="card modulo ${a && a.t.id === t.id ? 'ouro' : ''}">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span class="n">TRILHA ${esc(t.n)}</span>${st === 'feito' ? '<span class="chip ok">concluída</span>' : st === 'atual' ? '<span class="chip ouro">em andamento</span>' : t.sequencial ? '<span class="chip">passo a passo</span>' : '<span class="chip">aberta · ordem sugerida</span>'}</div>
-        <h4>${esc(t.titulo)}${t.sequencial ? ` <span class="chip ouro" style="vertical-align:middle">${its.length} passos da jornada</span>` : t.coach ? ' <span class="chip ouro" style="vertical-align:middle">aulas do coach</span>' : ''}</h4><div class="desc">${esc(t.descricao)}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span class="n">TRILHA ${esc(t.n)}</span>${trancada(t) ? `<span class="chip">${LOCK} contratada à parte</span>` : st === 'feito' ? '<span class="chip ok">concluída</span>' : st === 'atual' ? '<span class="chip ouro">em andamento</span>' : t.sequencial ? '<span class="chip">passo a passo</span>' : '<span class="chip">aberta · ordem sugerida</span>'}</div>
+        <h4>${esc(t.titulo)}${t.sequencial ? ` <span class="chip ouro" style="vertical-align:middle">${its.length} passos da jornada</span>` : t.coach ? ' <span class="chip ouro" style="vertical-align:middle">aulas do coach</span>' : ''}</h4><div class="desc">${esc(t.descricao)}</div>${trancada(t) ? `<div class="aviso-aparte">${LOCK} A Trilha de Liderança é contratada à parte e não é necessária para o certificado. Para liberar, fale com ${esc(nomeCoach())}.</div>` : ''}
         <div style="display:flex;align-items:center;gap:10px"><div class="barra" style="flex:1"><b style="width:${its.length ? f / its.length * 100 : 0}%"></b></div><span class="mu num" style="font-size:12px">${f}/${its.length}</span></div>
         <div>${its.length ? its.map(it => { const ok = R.feito(D, it.id); const ab = R.acessivel(L, D, it); const at = a && a.id === it.id;
           return `<div class="aula"><span class="st ${ok ? 'ok' : ''}">${ok ? '✓' : ab ? it.k + 1 : LOCK}</span>
@@ -200,8 +203,14 @@ VIEWS.coachee.jornada = () => {
             ${ok ? '<span class="chip ok">Concluída</span>' : at ? '<span class="chip ouro">Próximo</span>' : ab ? '<span class="chip">Disponível</span>' : '<span class="chip">Bloqueada</span>'}</div>`; }).join('') : '<div class="vazio">As aulas desta trilha serão publicadas em breve.</div>'}</div>
         ${t.assessments ? `<div class="sep"></div><div class="rotulinho ouro-tx" style="margin-bottom:4px">Quem eu sou · seus assessments</div>
           ${Object.keys(CONTEUDO.ASSESS).map(k => { const hs = R.historico(D, k); const u = hs[hs.length - 1]; return `<div class="aula"><span class="st ${u ? 'ok' : ''}">${u ? '✓' : ''}</span><span style="flex:1;min-width:0"><b>${esc(CONTEUDO.ASSESS[k].nome)}</b><br><small class="mu">${u ? `Feito em ${brc(u.data)} · refaz na próxima parada` : 'Pendente'}</small></span><button class="bt ${u ? 'bt-linha' : 'bt-ouro'} bt-sm" data-ir="quem">${u ? 'Ver' : 'Fazer'}</button></div>`; }).join('')}` : ''}
-      </section>`; }).join('')}
-    <div class="card ${a ? '' : 'ouro'}" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Certificado de conclusão</div><div class="mu">${a ? 'Liberado ao concluir as quatro trilhas.' : 'Parabéns! Você concluiu o programa.'}</div></div>${a ? `<span class="cadeado">${LOCK} Bloqueado</span>` : '<button class="bt bt-ouro" data-ir="certificado">Ver certificado</button>'}</div>
+      </section>`; };
+  return `
+  <div class="topo"><div><div class="sobre">Sua jornada de carreira</div><h1>Minha jornada</h1><div class="sub">A Trilha II segue passo a passo. As outras ficam abertas: a ordem é só uma sugestão.</div></div></div>
+  ${mapa()}
+  <div class="grade">
+    ${trilhas.filter(t => !t.aParte).map(cartao).join('')}
+    <div class="card ${a ? '' : 'ouro'}" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Certificado de conclusão</div><div class="mu">${a ? 'Liberado ao concluir as Trilhas I, II e III.' : 'Parabéns! Você concluiu o programa.'}</div></div>${a ? `<span class="cadeado">${LOCK} Bloqueado</span>` : '<button class="bt bt-ouro" data-ir="certificado">Ver certificado</button>'}</div>
+    ${trilhas.filter(t => t.aParte).map(cartao).join('')}
     <div class="extra-sessao"><span>Quer aprofundar algum ponto da jornada com ${esc(nomeCoach())}?</span><button class="link-discreto" data-acao="sessao">Comprar sessão individual</button></div>
     ${C.pedidos.length ? `<div class="extra-sessao"><span>Seu último pedido de sessão: ${({ aguardando: 'aguardando pagamento', pago: 'pago, aguardando o horário', agendado: 'agendado', cancelado: 'cancelado' })[C.pedidos[0].status] || esc(C.pedidos[0].status)} · ${brc(C.pedidos[0].data)}</span></div>` : ''}
   </div>`;
@@ -402,6 +411,8 @@ function cartaoAssess(k, D, paraCoach, Pp) {
   return `<div class="card ${lib && !paraCoach ? 'ouro' : ''}"><h3>${esc(A.nome)} ${chip}</h3>
     ${u ? `${titulo}${ant ? `<div class="comp-leg" style="margin:6px 0 8px"><span><i class="antes"></i>${br(ant.data)}</span><span><i class="depois"></i>${br(u.data)}</span></div>` : ''}<div class="disc" style="margin-top:8px">${linhas}</div>` : `<p class="mu" style="margin:0 0 10px">${esc(A.desc)}</p>`}
     ${ord && !paraCoach ? `<div class="sep"></div><div class="rotulinho" style="margin-bottom:4px">Leitura guiada</div><p style="margin:0 0 4px;font-size:13px">${esc(DISC[ord[0][0]][1])} ${esc(DISC[ord[0][0]][2])}</p>` : ''}
+    ${u && u.arquivo ? `<div style="margin-top:12px">${botaoMaterial({ url: u.arquivo }, k === 'disc' ? 'Ver relatório do NBM (arquivo)' : 'Ver arquivo do relatório')}</div>`
+      : u && k === 'disc' && !paraCoach ? '<div style="margin-top:12px"><button class="link-discreto" data-acao="anexar-relatorio" style="color:var(--gold-2)">Anexar o PDF do relatório do NBM</button></div>' : ''}
     <div class="sep"></div><small class="mu num">${hs.length ? `Feito em ${hs.map(x => brc(x.data)).join(' · ')}` : 'Ainda não feito'}</small>
     ${acao ? `<div style="margin-top:10px;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center">${acao}</div>` : ''}</div>`;
 }
@@ -409,7 +420,8 @@ function cartaoAssess(k, D, paraCoach, Pp) {
 VIEWS.coachee.quem = () => {
   const Pp = P(); const pa = R.paradaAberta(Pp); const pp = R.proximaParada(Pp);
   return `
-  <div class="topo"><div><div class="sobre">Seus assessments · parte da Trilha I · Autoconhecimento</div><h1>Quem eu sou</h1><div class="sub">Feitos na entrada e refeitos a cada 3 meses, junto com as paradas. Assim você vê como está mudando.</div></div></div>
+  <div class="topo"><div><div class="sobre">Seus assessments · parte da Trilha I · Autoconhecimento</div><h1>Quem eu sou</h1><div class="sub">Feitos na entrada e refeitos a cada 3 meses, junto com as paradas. Assim você vê como está mudando.</div></div>
+    ${C.D.assessments.length ? '<button class="bt bt-linha" data-ir="relatorio">Ver relatório dos assessments</button>' : ''}</div>
   ${pa ? `<div class="card ouro" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="rotulinho ouro-tx">${nomeParada(pa)} aberta</div><b>Refaça seus assessments até ${br(pa.data)}.</b> <span class="mu">Depois registre a parada em "Minha evolução".</span></div><button class="bt bt-linha bt-sm" data-ir="evolucao">Ir para a parada</button></div>`
     : pp ? `<div class="meta-mini"><span class="rotulinho ouro-tx">Próxima reavaliação</span><span>${nomeParada(pp)} · abre em ${br(pp.abre)}</span></div>` : ''}
   <div class="grade g2">${Object.keys(CONTEUDO.ASSESS).map(k => cartaoAssess(k, C.D, false, Pp)).join('')}</div>`;
@@ -434,8 +446,13 @@ VIEWS.coachee.questionario = () => {
 };
 MUDA.quest = t => { S.resp[t.name.slice(1)] = +t.value; const q = CONTEUDO.QUEST[S.p]; $('#quest-cont').textContent = `${Object.keys(S.resp).length} de ${q.perguntas.length} respondidas`; };
 
-async function registrarAssessment(tipo, r) {
-  const doc = { coacheeId: S.u.id, tipo, data: hoje(), criado: new Date().toISOString(), r };
+// Relatório gerado fora da plataforma (ex.: PDF do NBM): Cloudinary, se houver; senão fica no próprio banco (até 5 MB).
+async function enviarRelatorio(f) {
+  const cloud = C.cfg.cloudinary || {};
+  return !Dados.demo && !(cloud.nome && cloud.preset) ? guardarArquivo(f) : Dados.enviarArquivo(f, 'assessments', cloud);
+}
+async function registrarAssessment(tipo, r, extra = {}) {
+  const doc = { coacheeId: S.u.id, tipo, data: hoje(), criado: new Date().toISOString(), r, ...extra };
   const id = await col('assessments').adicionar(doc); C.D.assessments.push({ id, ...doc });
 }
 FORMS['form-quest'] = async f => {
@@ -448,11 +465,53 @@ FORMS['form-quest'] = async f => {
 };
 ACOES['registrar-disc'] = () => {
   const DISC = CONTEUDO.DISC;
-  abrirModal('Registrar resultado do DISC', `<p class="mu" style="margin:0 0 12px;font-size:13px">Copie as porcentagens do relatório do NBM.</p><div class="duas">${['D', 'I', 'S', 'C'].map(x => `<div><label class="rotulo" for="dc-${x}">${DISC[x][0]} (%)</label><input class="campo num" id="dc-${x}" type="number" min="0" max="100"></div>`).join('')}</div>`, 'Registrar', async () => {
+  abrirModal('Registrar resultado do DISC', `<p class="mu" style="margin:0 0 12px;font-size:13px">Copie as porcentagens do relatório do NBM.</p><div class="duas">${['D', 'I', 'S', 'C'].map(x => `<div><label class="rotulo" for="dc-${x}">${DISC[x][0]} (%)</label><input class="campo num" id="dc-${x}" type="number" min="0" max="100"></div>`).join('')}</div>
+    <label class="rotulo" for="dc-arq">PDF do relatório do NBM (opcional, até 5 MB)</label><input class="campo" id="dc-arq" type="file" accept="application/pdf,image/*">`, 'Registrar', async () => {
     const r = {};
     for (const x of ['D', 'I', 'S', 'C']) { const v = valor('dc-' + x); const n = Number(v); if (v === '' || isNaN(n) || n < 0 || n > 100) { toast('Use valores de 0 a 100.'); return false; } r[x] = n; }
-    await registrarAssessment('disc', r); toast('Resultado do DISC registrado.'); render();
+    const f = $('#dc-arq').files[0]; const extra = f ? { arquivo: await enviarRelatorio(f) } : {};
+    await registrarAssessment('disc', r, extra); toast(f ? 'Resultado e relatório do DISC registrados.' : 'Resultado do DISC registrado.'); render();
   });
+};
+
+ACOES['anexar-relatorio'] = () => {
+  const u = R.historico(C.D, 'disc').pop(); if (!u) return;
+  abrirModal('Anexar o relatório do DISC', `<p class="mu" style="margin:0 0 12px;font-size:13px">Envie o PDF que o NBM gerou para o seu teste de ${br(u.data)}. Você e o seu coach poderão abri-lo aqui.</p>
+    <label class="rotulo" for="ax-arq">PDF do relatório (até 5 MB)</label><input class="campo" id="ax-arq" type="file" accept="application/pdf,image/*">`, 'Anexar', async () => {
+    const f = $('#ax-arq').files[0]; if (!f) { toast('Escolha o arquivo do relatório.'); return false; }
+    const arquivo = await enviarRelatorio(f); await col('assessments').salvar(u.id, { arquivo }); u.arquivo = arquivo;
+    toast('Relatório anexado.'); render();
+  });
+};
+
+/* ----- Relatório dos assessments (gerado pela plataforma, para ver e salvar em PDF) ----- */
+VIEWS.coachee.relatorio = () => {
+  const D = C.D; const DISC = CONTEUDO.DISC;
+  const blocos = Object.keys(CONTEUDO.ASSESS).map(k => {
+    const A = CONTEUDO.ASSESS[k]; const hs = R.historico(D, k);
+    if (!hs.length) return `<section class="rel-bloco"><h3>${esc(A.nome)}</h3><p class="mu">Ainda não feito.</p></section>`;
+    const dims = Object.keys(hs[hs.length - 1].r); const nome = d => k === 'disc' ? DISC[d][0] : d;
+    const u = hs[hs.length - 1]; const ord = k === 'disc' ? Object.entries(u.r).sort((x, y) => y[1] - x[1]) : null;
+    return `<section class="rel-bloco"><h3>${esc(A.nome)}</h3>
+      ${ord ? `<p><b>Perfil predominante:</b> ${esc(DISC[ord[0][0]][0])}, com ${esc(DISC[ord[1][0]][0])}. ${esc(DISC[ord[0][0]][1])} ${esc(DISC[ord[0][0]][2])}</p>` : ''}
+      <table class="rel-tab"><thead><tr><th>Dimensão</th>${hs.map(x => `<th class="num">${br(x.data)}</th>`).join('')}${hs.length > 1 ? '<th class="num">Variação</th>' : ''}</tr></thead>
+      <tbody>${dims.map(d => { const v0 = hs[0].r[d], v1 = u.r[d]; return `<tr><td>${esc(nome(d))}</td>${hs.map(x => `<td class="num">${x.r[d] ?? '—'}%</td>`).join('')}${hs.length > 1 ? `<td class="num">${v1 - v0 > 0 ? '+' : ''}${v1 - v0} pts</td>` : ''}</tr>`; }).join('')}</tbody></table>
+      ${u.arquivo ? `<p class="nao-imprimir" style="margin-top:8px">${botaoMaterial({ url: u.arquivo }, 'Abrir o arquivo do NBM')}</p>` : ''}</section>`;
+  }).join('');
+  return `<div class="topo"><div><div class="sobre">Quem eu sou</div><h1>Relatório dos assessments</h1></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt bt-ouro" data-acao="imprimir-relatorio">Salvar em PDF</button><button class="bt bt-linha" data-ir="quem">← Quem eu sou</button></div></div>
+  <div class="relatorio card">
+    <div class="rel-cab"><div><div class="sobre">${esc(nomePrograma())}</div><h2>${esc(S.u.nome)}</h2><div class="mu">Relatório dos assessments · gerado em ${br(hoje())}</div></div></div>
+    ${blocos}
+    <p class="mu" style="font-size:12px;margin-top:16px">Os assessments são refeitos a cada parada trimestral. A coluna "Variação" compara o primeiro com o mais recente.</p>
+  </div>`;
+};
+ACOES['imprimir-relatorio'] = () => {
+  const rel = document.querySelector('.relatorio'); if (!rel) return;
+  const caixa = document.createElement('div'); caixa.id = 'ct-print'; caixa.className = 'rel-print'; caixa.appendChild(rel.cloneNode(true));
+  document.body.appendChild(caixa); document.body.classList.add('imprimindo-cert', 'imprimindo-rel');
+  const limpar = () => { caixa.remove(); document.body.classList.remove('imprimindo-cert', 'imprimindo-rel'); window.removeEventListener('afterprint', limpar); };
+  window.addEventListener('afterprint', limpar); window.print(); setTimeout(() => { if (!matchMedia('print').matches) limpar(); }, 1000);
 };
 
 /* ===================== Minha evolução (RF-30 a RF-36) ===================== */
@@ -489,7 +548,7 @@ VIEWS.coachee.evolucao = () => {
     <div class="card kpi"><div class="v num">${Math.max(R.dias(S.u.inicio, h), 0)}</div><div class="l">dias de jornada desde ${brc(S.u.inicio)}</div></div>
     <div class="card kpi"><div class="v num">${feitos}</div><div class="l">passos e aulas concluídos</div></div>
     <div class="card kpi"><div class="v num">${acoes}</div><div class="l">${acoes === 1 ? 'ação colocada' : 'ações colocadas'} em prática</div></div>
-    <div class="card kpi ouro"><div class="v num">${seq}</div><div class="l">semanas seguidas em movimento</div>${notaSemana(seq, h)}</div>
+    <div class="card kpi ouro"><div class="v num">${R.diasSeguidos(L, D, S.u, h)}</div><div class="l">dias seguidos em movimento</div><div class="mu" style="font-size:12px;margin-top:4px">${plural(seq, 'semana seguida', 'semanas seguidas')} com atividade</div></div>
   </div>
   <div class="card" style="margin-bottom:16px"><h3>Insígnias <span class="mu acao num" style="font-size:12px;font-weight:500">${ins.filter(i => i.ok).length} de ${ins.length}</span></h3>
     ${[['pratica', 'Na prática · o que mais vale'], ['jornada', 'Na jornada']].map(([gr, rot]) => `<div class="rotulinho ${gr === 'pratica' ? 'ouro-tx' : ''}" style="margin:6px 0 4px">${rot}</div>
@@ -641,7 +700,6 @@ ACOES.sessao = () => {
 VIEWS.coachee.comunidade = () => {
   const h = hoje(); const pe = proxEncontro(); const q = S.buscaMat.toLowerCase(); const ev = C.cfg.evento;
   const mats = C.materiais.filter(m => !q || [m.titulo, m.descricao, m.tags, m.tipo].join(' ').toLowerCase().includes(q));
-  const forns = C.fornecedores.filter(f => !q || [f.titulo, f.area, f.descricao].join(' ').toLowerCase().includes(q));
   const inscrito = C.inscrito;
   return `
   <div class="topo"><div><div class="sobre">Aprender junto</div><h1>Comunidade</h1><div class="sub">Encontros em grupo, materiais, evento anual e a rede do programa.</div></div></div>
@@ -661,11 +719,9 @@ VIEWS.coachee.comunidade = () => {
       ${inscrito ? '<span class="chip ok">Inscrição feita</span>' : '<button class="bt bt-ouro" data-acao="inscricao">Fazer inscrição</button>'}</div>` : ''}
     </div>
   </div>
-  <div class="ferramentas"><div class="busca"><input class="campo" id="busca-mat" placeholder="Buscar materiais e fornecedores" value="${esc(S.buscaMat)}" aria-label="Buscar">${svg('busca')}</div></div>
+  <div class="ferramentas"><div class="busca"><input class="campo" id="busca-mat" placeholder="Buscar materiais" value="${esc(S.buscaMat)}" aria-label="Buscar">${svg('busca')}</div></div>
   <div class="card" style="margin-bottom:16px"><h3>Manuais, e-books e ferramentas <span class="mu acao num" style="font-size:12px;font-weight:500">${plural(mats.length, 'item', 'itens')}</span></h3>
-    <div class="lista">${mats.length ? mats.map(m => `<div class="item"><span class="chip ouro" style="min-width:86px;justify-content:center">${esc(m.tipo)}</span><div class="tx"><b>${esc(m.titulo)}</b><small>${esc(m.descricao)}</small></div>${botaoMaterial(m) || '<span class="chip">em breve</span>'}</div>`).join('') : '<div class="vazio">Nenhum material encontrado.</div>'}</div></div>
-  <div class="card"><h3>Fornecedores e contatos indicados</h3>
-    <div class="grade g4">${forns.length ? forns.map(f => `<div style="border:1px solid var(--line);border-radius:8px;padding:14px"><span class="chip">${esc(f.area)}</span><div style="font-weight:700;margin:8px 0 2px">${esc(f.titulo)}</div><div class="mu" style="font-size:12.5px">${esc(f.descricao)}</div>${f.contato ? `<div style="font-size:12.5px;margin-top:6px">${esc(f.contato)}</div>` : ''}</div>`).join('') : '<div class="vazio">Nenhum fornecedor encontrado.</div>'}</div></div>`;
+    <div class="lista">${mats.length ? mats.map(m => `<div class="item"><span class="chip ouro" style="min-width:86px;justify-content:center">${esc(m.tipo)}</span><div class="tx"><b>${esc(m.titulo)}</b><small>${esc(m.descricao)}</small></div>${botaoMaterial(m) || '<span class="chip">em breve</span>'}</div>`).join('') : '<div class="vazio">Nenhum material encontrado.</div>'}</div></div>`;
 };
 Object.assign(ACOES, {
   'ver-gravacao'(t) {

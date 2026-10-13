@@ -15,7 +15,7 @@ const CONTEUDO = (() => {
     t1: { n: 'I', ordem: 1, titulo: 'Autoconhecimento', descricao: 'Quem você é hoje: seu perfil DISC, sua inteligência emocional e o que te move na carreira.', assessments: true },
     t2: { n: 'II', ordem: 2, titulo: 'Planejamento estratégico', descricao: 'Os 8 passos da jornada, do raio-x da sua vida ao plano de ação. Cada passo libera o próximo.', sequencial: true },
     t3: { n: 'III', ordem: 3, titulo: 'Desenvolvimento de competências comportamentais', descricao: 'As competências que sustentam o plano: disciplina, foco, gestão do tempo e comunicação.' },
-    t4: { n: 'IV', ordem: 4, titulo: 'Liderança', descricao: 'Aulas dadas pelo seu coach sobre liderar pessoas, delegar e formar a equipe.', coach: true }
+    t4: { n: 'IV', ordem: 4, titulo: 'Liderança', descricao: 'Aulas dadas pelo seu coach sobre liderar pessoas, delegar e formar a equipe.', coach: true, aParte: true }
   };
 
   const aula = (trilhaId, ordem, titulo, exercicio = '') => ({ trilhaId, ordem, tipo: 'aula', titulo, video: '', dur: 15, exercicio, material: null });
@@ -129,8 +129,8 @@ const CONTEUDO = (() => {
   const TRILHA_FEITA = {
     t1: ['Trilha I concluída', 'Você sabe mais sobre quem você é. Agora é hora de transformar isso em plano.'],
     t2: ['Trilha II concluída', 'Seu plano está no papel. A partir daqui, ele vira comportamento.'],
-    t3: ['Trilha III concluída', 'As competências que sustentam o seu plano já fazem parte da sua rotina.'],
-    t4: ['Jornada concluída', 'Você percorreu as quatro trilhas. Seu certificado está liberado.']
+    t3: ['Jornada concluída', 'Você percorreu as três trilhas do programa. Seu certificado está liberado.'],
+    t4: ['Trilha de Liderança concluída', 'Você concluiu a Trilha IV. Agora é liderar pelo exemplo.']
   };
 
   // RASCUNHO para revisão jurídica antes de ir para os coachees.
@@ -144,7 +144,10 @@ const CONTEUDO = (() => {
       <p class="mu">Texto provisório, a ser revisado antes do lançamento.</p>`
   };
 
-  return { AREAS, trilhas, itens, QUEST, ASSESS, DISC, PERGUNTAS_PARADA, TRILHA_FEITA, TERMOS };
+  // Trilha contratada à parte (Liderança): não conta para o certificado e só abre para quem a contratou.
+  const TRILHA_A_PARTE = 't4';
+
+  return { TRILHA_A_PARTE, AREAS, trilhas, itens, QUEST, ASSESS, DISC, PERGUNTAS_PARADA, TRILHA_FEITA, TERMOS };
 })();
 
 if (typeof module !== 'undefined') module.exports = CONTEUDO;
