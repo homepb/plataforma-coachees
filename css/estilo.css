@@ -379,6 +379,12 @@ dialog::backdrop{background:rgba(0,0,0,.65)}
 .ordem button:disabled{opacity:.3;cursor:default}
 .linha-acao{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) 150px 30px;gap:8px;align-items:start}
 .linha-acao .campo{margin-bottom:8px}
+.linha-acao{grid-template-columns:minmax(0,2fr) minmax(0,1fr) 190px 30px}
+.prazo-grupo .campo{margin-bottom:6px}
+.prazo-rapido{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.prazo-rapido button{font:inherit;font-size:12px;font-weight:600;color:var(--gold-2);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer;min-height:28px}
+.prazo-rapido button:hover{border-color:var(--gold)}
+.prazo-rapido button.ativo{background:var(--gold-soft);border-color:var(--gold);color:var(--ivory)}
 @media (max-width:640px){.linha-acao{grid-template-columns:1fr 1fr}.linha-acao>:first-child{grid-column:1/-1}}
 .gravador{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:2px 0 12px}
 .gravando{color:var(--bad);font-weight:700;font-size:12.5px}

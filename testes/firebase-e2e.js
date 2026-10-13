@@ -107,7 +107,7 @@ async function definirSenha(email, senha) {
   await p.click('#form-passo button[type=submit]'); await espera(1200);
   if (await p.$('.celebra')) await p.click('.celebra [data-fechar]');
   ok(await p.evaluate(() => !!Regras.meta(C.L, C.D)), 'meta escrita no passo 3');
-  await ir('pratica'); await p.click('[data-acao="nova-acao"]'); await p.fill('#na-o', 'Reunião semanal com a equipe'); await p.check('#na-m', { force: true }); await salvarModal();
+  await ir('pratica'); await p.click('[data-acao="nova-acao"]'); await p.fill('#na-o', 'Reunião semanal com a equipe'); await p.click('#form-modal [data-acao="prazo-rapido"][data-d="semana"]'); await p.check('#na-m', { force: true }); await salvarModal();
   await p.click('[data-acao="nova-rotina"]'); await p.fill('#nr-t', 'Revisar prioridades'); await salvarModal();
   await p.click('[data-muda="rotina"]:not([disabled])'); await espera(600);
   ok(await p.evaluate(() => C.D.acoes.length === 1 && C.D.rotinas[0].marcas.length === 1), 'ação e rotina gravadas');

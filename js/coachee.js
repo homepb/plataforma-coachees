@@ -228,7 +228,14 @@ function corpoPasso(it) {
     ${cs.map((c, k) => `<div><label class="rotulo" for="ps-${k}">${esc(c.rotulo)}</label>${exemplo(c, editar)}${campoHtml('ps-' + k, c, r[k], leitura)}</div>`).join('')}
     ${!cs.length ? '<p class="mu">O formulário deste passo será publicado em breve.</p>' : ''}${cs.length ? rodape : ''}</form>`;
 }
-const linhaPlano = (k, l = {}) => `<div class="linha-acao" data-linha="${k}"><input class="campo" placeholder="O que muda" aria-label="Ação ${k + 1}: o que muda" value="${esc(l.oque || '')}"><input class="campo" placeholder="Quem faz" aria-label="Ação ${k + 1}: quem faz" value="${esc(l.quem || primeiroNome(S.u.nome))}"><input class="campo" type="date" aria-label="Ação ${k + 1}: até quando" value="${esc(l.prazo || '')}"><button type="button" class="x" data-acao="tirar-linha" aria-label="Remover ação ${k + 1}">×</button></div>`;
+// Prazo da ação: começa vazio e o coachee escolhe com um clique (Esta semana · 15 dias · 30 dias) ou no calendário.
+// Assim o prazo é sempre uma decisão dele, e não um padrão aceito sem pensar.
+const PRAZOS = [['semana', 'Esta semana', 'Semana'], ['15', '15 dias', '15 dias'], ['30', '30 dias', '30 dias']];
+function campoPrazo(id, valorAtual, rotuloAria, curto = false) {
+  return `<div class="prazo-grupo"><input class="campo" type="date" ${id ? `id="${id}"` : ''} ${rotuloAria ? `aria-label="${rotuloAria}"` : ''} value="${esc(valorAtual || '')}" min="${hoje()}">
+    <div class="prazo-rapido" role="group" aria-label="Prazos rápidos">${PRAZOS.map(([d, l, c]) => `<button type="button" data-acao="prazo-rapido" data-d="${d}" aria-label="Prazo: ${l}">${curto ? c : l}</button>`).join('')}<button type="button" data-acao="prazo-rapido" data-d="escolher">${curto ? 'Outra' : 'Escolher data'}</button></div></div>`;
+}
+const linhaPlano = (k, l = {}) => `<div class="linha-acao" data-linha="${k}"><input class="campo" placeholder="O que muda" aria-label="Ação ${k + 1}: o que muda" value="${esc(l.oque || '')}"><input class="campo" placeholder="Quem faz" aria-label="Ação ${k + 1}: quem faz" value="${esc(l.quem || primeiroNome(S.u.nome))}">${campoPrazo('', l.prazo, `Ação ${k + 1}: até quando`, true)}<button type="button" class="x" data-acao="tirar-linha" aria-label="Remover ação ${k + 1}">×</button></div>`;
 
 VIEWS.coachee.item = () => {
   const L = C.L, D = C.D; const i = L.findIndex(x => x.id === S.p); const it = L[i];
@@ -276,6 +283,14 @@ Object.assign(ACOES, {
     await salvarProgresso(id, { ok, data: ok ? hoje() : null });
     if (ok) depoisDeConcluir(id); else { toast('Marcação removida.'); render(); }
   },
+  'prazo-rapido'(t) {
+    const g = t.closest('.prazo-grupo'); const c = g.querySelector('input[type=date]');
+    if (t.dataset.d === 'escolher') { c.focus(); try { c.showPicker(); } catch (e) {} return; }
+    // "Esta semana" vai até o domingo; se hoje já é domingo, vai até o próximo.
+    const h = hoje(); const dom = R.somaDias(R.segunda(h), 6);
+    c.value = t.dataset.d === 'semana' ? (dom > h ? dom : R.somaDias(dom, 7)) : R.somaDias(h, +t.dataset.d);
+    g.querySelectorAll('[data-acao="prazo-rapido"]').forEach(b => b.classList.toggle('ativo', b === t));
+  },
   'editar-passo'(t) { S.editando = t.dataset.id; render(); },
   'cancelar-edicao'() { S.editando = null; render(); },
   'linha-plano'() { const c = $('#linhas-plano'); c.insertAdjacentHTML('beforeend', linhaPlano(c.children.length)); c.lastElementChild.querySelector('input').focus(); },
@@ -306,7 +321,8 @@ FORMS['form-passo'] = async f => {
   if (it.chave === 'plano' && !jaFeito) {
     novas = [...f.querySelectorAll('.linha-acao')].map(l => { const [o, q, p] = l.querySelectorAll('input'); return { oque: o.value.trim(), quem: q.value.trim(), prazo: p.value }; }).filter(a => a.oque);
     if (!novas.length) { toast('Escreva pelo menos uma ação.'); return; }
-    if (novas.some(a => !a.quem || !a.prazo)) { toast('Cada ação precisa de quem faz e até quando.'); return; }
+    if (novas.some(a => !a.quem)) { toast('Cada ação precisa de quem faz.'); return; }
+    if (novas.some(a => !a.prazo)) { toast('Defina até quando em cada ação: escolha um dos prazos rápidos ou uma data.'); return; }
     r.acoes = novas;
   }
   const antes = C.D.progresso[id];
@@ -529,16 +545,17 @@ VIEWS.coachee.pratica = () => {
 };
 
 function modalAcao(a) {
-  const novo = !a; a = a || { quem: primeiroNome(S.u.nome), prazo: R.somaDias(hoje(), 14) };
+  const novo = !a; a = a || { quem: primeiroNome(S.u.nome), prazo: '' };
   abrirModal(novo ? 'Nova ação' : 'Editar ação', `<p class="mu" style="margin:0 0 12px;font-size:13px">Uma boa ação é pequena, tem um responsável e um prazo. Se ela parece grande, quebre em duas ou três.</p>
     <label class="rotulo" for="na-o">O que muda</label><details class="exemplo"><summary>Ver exemplo</summary><span>Em vez de "Melhorar a comunicação da equipe", escreva "Fazer reunião de 30 min com a equipe toda segunda, com pauta enviada na sexta".</span></details><input class="campo" id="na-o" value="${esc(a.oque || '')}" placeholder="Uma ação concreta, que dá para começar esta semana">
-    <div class="duas"><div><label class="rotulo" for="na-q">Quem faz</label><input class="campo" id="na-q" value="${esc(a.quem || '')}"></div><div><label class="rotulo" for="na-p">Até quando</label><input class="campo" id="na-p" type="date" value="${esc(a.prazo || '')}"></div></div>
+    <div class="duas"><div><label class="rotulo" for="na-q">Quem faz</label><input class="campo" id="na-q" value="${esc(a.quem || '')}"></div><div><label class="rotulo" for="na-p">Até quando</label>${campoPrazo('na-p', a.prazo)}</div></div>
     <label style="display:flex;gap:10px;align-items:center;margin:2px 0 4px"><input type="checkbox" class="ck" id="na-m" ${a.pauta ? 'checked' : ''}> Quero discutir esta ação na mentoria em grupo</label>
     ${novo ? '' : '<div class="sep"></div><button type="button" class="link-discreto" data-acao="excluir-acao" data-id="' + a.id + '">Excluir esta ação</button>'}`,
   novo ? 'Adicionar' : 'Salvar', async () => {
     const dados = { oque: valor('na-o'), quem: valor('na-q'), prazo: valor('na-p'), pauta: $('#na-m').checked };
     if (!dados.oque) { toast('Descreva a ação.'); return false; }
-    if (!dados.quem || !dados.prazo) { toast('Diga quem faz e até quando.'); return false; }
+    if (!dados.quem) { $('#na-q').focus(); toast('Diga quem faz.'); return false; }
+    if (!dados.prazo) { $('#na-p').focus(); toast('Defina até quando: escolha um dos prazos rápidos ou uma data.'); return false; }
     if (novo) { const doc = { coacheeId: S.u.id, ...dados, ok: false, criada: hoje() }; const id = await col('acoes').adicionar(doc); C.D.acoes.push({ id, ...doc }); toast('Ação adicionada ao plano.'); }
     else { await col('acoes').salvar(a.id, dados); Object.assign(a, dados); toast('Ação atualizada.'); }
     render();
