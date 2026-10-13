@@ -118,6 +118,9 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     // Segunda reserva: as duas sessões continuam aparecendo.
     await p.click('.agenda-dia .hora'); await p.fill('#ss-m', 'Revisar o plano de ação'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
     ok(await p.$$eval('.minhas-sessoes .sessao-minha', c => c.length) === 2 && (await texto()).includes('Preparar a conversa com a diretoria') && (await texto()).includes('Revisar o plano de ação'), 'duas sessões reservadas aparecem juntas');
+    await p.evaluate(() => { const x = C.pedidos[0]; x._st = x.status; x.status = 'agendado'; x.link = 'https://meet.google.com/abc-defg-hij'; render(); });
+    ok(await p.$('.sm-acoes a[href="https://meet.google.com/abc-defg-hij"]') && await p.$('.sm-acoes a[href^="https://calendar.google.com/calendar/render"]'), 'sessão confirmada mostra Entrar na sessão e Adicionar à agenda');
+    await p.evaluate(() => { const x = C.pedidos[0]; x.status = x._st; delete x._st; delete x.link; render(); });
     ok(await p.evaluate(() => C.pedidos.length === 2), 'pedidos de sessão individual registrados');
     await ir('evolucao'); await foto('coachee-evolucao');
 

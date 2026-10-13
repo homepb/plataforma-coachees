@@ -20,8 +20,26 @@ function horariosLivres() {
 // da mais próxima para a mais distante. Pedidos sem horário escolhido ficam no fim.
 const pedidosAtivos = () => (C.pedidos || []).filter(p => p.status === 'aguardando' || p.status === 'pago' || (p.status === 'agendado' && (!p.quando || p.quando >= hoje())))
   .sort((a, b) => ((a.quando || '9999') + (a.hora || '')).localeCompare((b.quando || '9999') + (b.hora || '')));
+// Link da chamada: o definido pelo coach para esta sessão; senão, a sala fixa das sessões (Meus ajustes).
+const linkSessao = p => urlSegura(p.link || doCoach('salaSessao'));
+// "Adicionar à agenda": abre o Google Agenda já com data, hora, duração e o link da chamada.
+function linkAgendaGoogle(p) {
+  if (!p.quando || !p.hora) return '';
+  const ini = new Date(`${p.quando}T${p.hora}:00`); const fim = new Date(ini.getTime() + (+doCoach('duracaoSessao') || 60) * 60000);
+  const f = d => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}00`;
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: `Sessão individual com ${nomeCoach()}`, dates: `${f(ini)}/${f(fim)}`, ctz: 'America/Sao_Paulo', details: `${p.motivo || ''}${linkSessao(p) ? `\n\nLink da chamada: ${linkSessao(p)}` : ''}`, location: linkSessao(p) || 'Online' });
+  return `https://calendar.google.com/calendar/render?${q}`;
+}
+function acoesSessao(p) {
+  if (p.status === 'aguardando') return urlSegura(doCoach('pagSessao')) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(doCoach('pagSessao')))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : '';
+  if (p.status !== 'agendado') return '<small class="mu sm-nota">O horário é confirmado por ' + esc(primeiroNome(nomeCoach())) + ' em breve.</small>';
+  const link = linkSessao(p); const ag = linkAgendaGoogle(p);
+  return `${link ? `<a class="bt bt-ouro bt-sm" href="${esc(link)}" target="_blank" rel="noopener">${IC_VIDEO}Entrar na sessão</a>` : `<small class="mu sm-nota">O link da chamada aparece aqui assim que ${esc(primeiroNome(nomeCoach()))} definir.</small>`}
+    ${ag ? `<a class="bt bt-linha bt-sm" href="${esc(ag)}" target="_blank" rel="noopener">Adicionar à agenda</a>` : ''}`;
+}
+const IC_VIDEO = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7h12v10H3zM15 10l6-3v10l-6-3"/></svg>';
 const cartaoMinhaSessao = p => `<div class="card ouro sessao-minha"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><div class="pp-rot">Sua sessão · ${PEDIDO_ST[p.status] || esc(p.status)}</div><b style="font-size:18px">${esc(p.horario)}</b><small class="mu">"${esc(p.motivo)}"</small></div>
-    ${p.status === 'aguardando' && urlSegura(doCoach('pagSessao')) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(doCoach('pagSessao')))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : ''}</div>`;
+    <div class="sm-acoes">${acoesSessao(p)}</div></div>`;
 
 // Cartão do Hoje: a sessão marcada ou um convite com o próximo horário livre.
 function cartaoSessaoHoje() {
@@ -91,7 +109,8 @@ VIEWS.coach.agenda = () => {
     <div class="card"><h3>Próximos horários <span class="mu acao num" style="font-size:12.5px;font-weight:500">${plural(livres, 'livre', 'livres')} · ${plural(meus.length - livres, 'reservado', 'reservados')}</span></h3>
       ${dias.length ? dias.map(d => `<div class="agenda-dia"><div class="ad-data"><b>${diaSemana(d.data)}</b><span>${brc(d.data)}</span></div><div class="ad-lista">${d.hs.map(x => { const p = pedidoDe(x);
         return x.status === 'livre' ? `<div class="ad-item"><span class="hora livre">${x.hora}</span><span class="mu">livre</span><button class="link-discreto" data-acao="remover-horario" data-id="${x.id}" aria-label="Remover ${x.hora} de ${brc(x.data)}">remover</button></div>`
-          : `<div class="ad-item"><span class="hora ${x.status === 'confirmado' ? 'ok' : 'res'}">${x.hora}</span><span><b>${esc(x.nome || 'Coachee')}</b> · ${x.status === 'confirmado' ? 'confirmada' : 'aguardando pagamento'}${p ? `<br><small class="mu">"${esc(p.motivo)}"</small>` : ''}</span><button class="link-discreto" data-acao="liberar-horario" data-id="${x.id}">cancelar reserva</button></div>`; }).join('')}</div></div>`).join('')
+          : `<div class="ad-item"><span class="hora ${x.status === 'confirmado' ? 'ok' : 'res'}">${x.hora}</span><span><b>${esc(x.nome || 'Coachee')}</b> · ${x.status === 'confirmado' ? 'confirmada' : 'aguardando pagamento'}${p ? `<br><small class="mu">"${esc(p.motivo)}"</small><br><small class="${linkSessao(p) ? 'ok-tx' : 'mu'}">${p.link ? 'Link próprio desta sessão' : doCoach('salaSessao') ? 'Usa a sua sala fixa das sessões' : 'Sem link da chamada'}</small>` : ''}</span>
+            <span class="ad-bts">${p ? `<button class="link-discreto" data-acao="link-sessao" data-id="${p.id}">${p.link ? 'trocar link' : 'definir link'}</button>` : ''}<button class="link-discreto" data-acao="liberar-horario" data-id="${x.id}">cancelar reserva</button></span></div>`; }).join('')}</div></div>`).join('')
         : '<div class="vazio">Nenhum horário aberto. Adicione ao lado.</div>'}
     </div>
     <form class="card" id="form-horario"><h3>Abrir horários</h3>
@@ -131,3 +150,14 @@ async function liberarHorario(hid) {
   await col('horarios').salvar(hid, { status: 'livre', coacheeId: '', nome: '' });
   const x = (C.horarios || []).find(y => y.id === hid); if (x) Object.assign(x, { status: 'livre', coacheeId: '', nome: '' });
 }
+
+// O coach define (ou troca) o link da chamada de uma sessão específica.
+ACOES['link-sessao'] = t => {
+  const p = C.pedidos.find(q => q.id === t.dataset.id); if (!p) return;
+  abrirModal('Link da chamada', `<p class="mu" style="margin:0 0 12px;font-size:13px">Sessão de ${esc(p.nome || 'coachee')} · ${esc(p.horario)}. O link aparece para a pessoa no botão "Entrar na sessão" assim que a sessão estiver confirmada.</p>
+    <label class="rotulo" for="ls-l">Link (Google Meet, Zoom, Teams…)</label><input class="campo" id="ls-l" value="${esc(p.link || '')}" placeholder="${esc(doCoach('salaSessao') || 'https://meet.google.com/…')}">
+    <p class="mu" style="font-size:12px;margin:-4px 0 0">Em branco, usa a sua sala fixa das sessões (Meus ajustes).</p>`, 'Salvar link', async () => {
+    const link = valor('ls-l'); if (link && !/^https:\/\//.test(link)) { toast('O link precisa começar com https://'); return false; }
+    await col('pedidos').salvar(p.id, { link }); p.link = link; toast('Link da chamada salvo.'); render();
+  });
+};

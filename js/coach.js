@@ -255,7 +255,21 @@ Object.assign(ACOES, {
     const c = daCarteira(t.dataset.c);
     avisar([c.u], `${primeiroNome(c.u.nome)}, sua jornada está esperando`, `Oi, ${primeiroNome(c.u.nome)}! Passando para lembrar da sua jornada no ${nomePrograma()}. Que tal dar um passo hoje? ${location.origin}${location.pathname}`);
   },
-  async 'agendar-sessao'(t) { const p = C.pedidos.find(x => x.id === t.dataset.id); await col('pedidos').salvar(p.id, { status: 'agendado' }); p.status = 'agendado'; toast('Sessão marcada como agendada.'); render(); }
+  // Pedido sem horário da agenda: o coach informa data, hora e o link da chamada ao marcar.
+  'agendar-sessao'(t) {
+    const p = C.pedidos.find(x => x.id === t.dataset.id);
+    abrirModal('Agendar a sessão', `<p class="mu" style="margin:0 0 12px;font-size:13px">${esc(p.nome || 'Coachee')} · preferência: ${esc(p.horario)} · "${esc(p.motivo)}"</p>
+      <div class="duas"><div><label class="rotulo" for="ag-d">Data</label><input class="campo" id="ag-d" type="date" min="${hoje()}" value="${esc(p.quando || '')}"></div>
+        <div><label class="rotulo" for="ag-h">Hora</label><input class="campo" id="ag-h" type="time" value="${esc(p.hora || '')}"></div></div>
+      <label class="rotulo" for="ag-l">Link da chamada</label><input class="campo" id="ag-l" value="${esc(p.link || '')}" placeholder="${esc(doCoach('salaSessao') || 'https://meet.google.com/…')}">
+      <p class="mu" style="font-size:12px;margin:-4px 0 0">Em branco, usa a sua sala fixa das sessões (Meus ajustes).</p>`, 'Agendar', async () => {
+      const quando = valor('ag-d'), hora = valor('ag-h'), link = valor('ag-l');
+      if (!quando || !hora) { toast('Escolha a data e a hora da sessão.'); return false; }
+      if (link && !/^https:\/\//.test(link)) { toast('O link precisa começar com https://'); return false; }
+      const d = { status: 'agendado', quando, hora, link, horario: quandoSessao({ data: quando, hora }) };
+      await col('pedidos').salvar(p.id, d); Object.assign(p, d); toast(`Sessão agendada: ${d.horario}.`); render();
+    });
+  }
 });
 
 /* ===================== Encontros em grupo (RF-54) ===================== */
@@ -540,6 +554,7 @@ VIEWS.coach.meus = () => {
       <div class="card"><h3>Sessão individual (1:1)</h3>
         <div class="duas"><div>${campo('mc-preco', 'precoSessao', 'Preço (R$)', 'Ex.: 450')}</div><div>${campo('mc-dur', 'duracaoSessao', 'Duração (min)', '60', 'number')}</div></div>
         ${campo('mc-pag', 'pagSessao', 'Link de pagamento da sessão', 'https://…')}
+        ${campo('mc-ss', 'salaSessao', 'Sala fixa das sessões (link da chamada)', 'https://meet.google.com/…')}
       </div>
       <div style="display:flex;justify-content:flex-end"><button class="bt bt-ouro" type="submit">Salvar meus ajustes</button></div>
     </div>
@@ -553,8 +568,8 @@ MUDA['foto-coach'] = async t => {
 };
 FORMS['form-meus'] = async () => {
   const d = { nome: valor('mc-nome'), apresentacao: valor('mc-apres'), whatsapp: valor('mc-wa'), sala: valor('mc-sala'), disc: valor('mc-disc'),
-    precoSessao: valor('mc-preco'), duracaoSessao: valor('mc-dur') ? +valor('mc-dur') : '', pagSessao: valor('mc-pag') };
-  for (const k of ['whatsapp', 'sala', 'disc', 'pagSessao']) if (d[k] && !/^https:\/\//.test(d[k])) { toast('Os links precisam começar com https://'); return; }
+    precoSessao: valor('mc-preco'), duracaoSessao: valor('mc-dur') ? +valor('mc-dur') : '', pagSessao: valor('mc-pag'), salaSessao: valor('mc-ss') };
+  for (const k of ['whatsapp', 'sala', 'disc', 'pagSessao', 'salaSessao']) if (d[k] && !/^https:\/\//.test(d[k])) { toast('Os links precisam começar com https://'); return; }
   if (d.duracaoSessao !== '' && (d.duracaoSessao < 15 || d.duracaoSessao > 240)) { toast('Use uma duração entre 15 e 240 minutos.'); return; }
   await col('coaches').salvar(S.u.id, { ...d, atualizadoEm: hoje() }); C.perfilCoach = { ...(C.perfilCoach || {}), ...d };
   toast('Ajustes salvos. Já valem para os seus coachees.'); render();

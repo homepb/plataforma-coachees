@@ -159,7 +159,7 @@ async function definirSenha(email, senha) {
   ok(await p.evaluate(() => /^arquivo:.+:3:manual-delega/.test(C.materiais[0].url)), 'material com PDF guardado no banco');
   await ir('agenda'); await p.fill('#hr-h', '10:00'); await p.click('#form-horario button[type=submit]'); await espera(1200);
   ok(await p.evaluate(() => C.horarios.length === 1 && C.horarios[0].status === 'livre'), 'coach abre horário na agenda (regra aceita)');
-  await ir('meus'); await p.fill('#mc-wa', 'https://chat.whatsapp.com/grupoVini'); await p.fill('#mc-preco', '450'); await p.click('#form-meus button[type=submit]'); await espera(1000);
+  await ir('meus'); await p.fill('#mc-wa', 'https://chat.whatsapp.com/grupoVini'); await p.fill('#mc-preco', '450'); await p.fill('#mc-ss', 'https://meet.google.com/sala-vini'); await p.click('#form-meus button[type=submit]'); await espera(1000);
   ok(await p.evaluate(() => C.perfilCoach && C.perfilCoach.precoSessao === '450'), 'coach salva os próprios ajustes (regra aceita)');
   // PDF do resultado do DISC: o coach anexa na ficha; a coachee só abre.
   await ir('ficha', await p.evaluate(() => C.carteira.find(c => c.u.email === 'ana@teste.com').u.id)); await p.click('[data-aba="assess"]'); await espera(300);
@@ -193,6 +193,9 @@ async function definirSenha(email, senha) {
   ok(await p.evaluate(() => C.pedidos.find(x => !x.horarioId).status === 'pago'), 'administrador confirma o pagamento da sessão');
   await p.click(`[data-acao="confirmar-sessao"][data-id="${await p.evaluate(() => C.pedidos.find(x => x.horarioId).id)}"]`); await espera(1000);
   ok(await p.evaluate(async () => { const x = C.pedidos.find(q => q.horarioId); return x.status === 'agendado' && (await Dados.col('horarios').obter(x.horarioId)).status === 'confirmado'; }), 'pagamento da sessão com horário já deixa a sessão agendada');
+  await entrar('ana@teste.com', 'Ana12345!'); await ir('sessao');
+  ok(!!(await p.$('.sm-acoes a[href="https://meet.google.com/sala-vini"]')), 'coachee vê o botão Entrar na sessão com a sala do coach');
+  await entrar('admin@teste.com', 'Teste123!');
   ok(await p.evaluate(() => { const a = C.usuarios.find(u => u.email === 'ana@teste.com'); return a.resumo && a.resumo.pct > 0; }), 'resumo do progresso chega ao administrador');
   // Coachee nunca é administrador: a administradora não consegue virar coachee.
   await ir('pessoas'); await p.click(`[data-acao="pessoa"][data-id="${await p.evaluate(() => S.u.id)}"]`);
