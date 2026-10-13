@@ -124,6 +124,17 @@ service cloud.firestore {
       allow update: if (admin() || coachDe(resource.data.coacheeId)) && mantemDono();
     }
 
+    // Agenda de sessões individuais: o coach abre horários; o coachee reserva um horário livre do próprio coach.
+    match /horarios/{id} {
+      allow read: if logado();
+      allow create: if admin() || (coach() && request.resource.data.coachId == request.auth.uid);
+      allow delete: if admin() || (coach() && resource.data.coachId == request.auth.uid);
+      allow update: if admin() || (coach() && resource.data.coachId == request.auth.uid)
+        || (logado() && resource.data.status == 'livre' && request.resource.data.status == 'reservado'
+            && request.resource.data.coacheeId == request.auth.uid && eu().get('coachId', '') == resource.data.coachId
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'coacheeId', 'nome']));
+    }
+
     match /vendas/{id} { allow read, write: if admin(); }
   }
 }

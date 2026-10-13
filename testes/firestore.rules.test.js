@@ -181,6 +181,18 @@ test('coachee anexa o próprio relatório do DISC e não altera o resultado', as
   await assertFails(db('bruno').doc('assessments/as1').update({ arquivo: 'x' }));
 });
 
+test('agenda: coach abre horários; coachee reserva só horário livre do próprio coach', async () => {
+  await assertSucceeds(db('vini').doc('horarios/h1').set({ coachId: 'vini', data: '2030-01-10', hora: '09:00', status: 'livre' }));
+  await assertFails(db('mari').doc('horarios/h2').set({ coachId: 'vini', data: '2030-01-10', hora: '09:00', status: 'livre' }));
+  await assertFails(db('ana').doc('horarios/h3').set({ coachId: 'vini', data: '2030-01-10', hora: '10:00', status: 'livre' }));
+  await assertFails(db('bruno').doc('horarios/h1').update({ status: 'reservado', coacheeId: 'bruno', nome: 'Bruno' }));
+  await assertFails(db('ana').doc('horarios/h1').update({ status: 'reservado', coacheeId: 'bruno', nome: 'Ana' }));
+  await assertSucceeds(db('ana').doc('horarios/h1').update({ status: 'reservado', coacheeId: 'ana', nome: 'Ana' }));
+  await assertFails(db('ana').doc('horarios/h1').update({ status: 'reservado', coacheeId: 'ana', nome: 'Ana 2' }));
+  await assertSucceeds(db('vini').doc('horarios/h1').update({ status: 'livre', coacheeId: '', nome: '' }));
+  await assertSucceeds(db('vini').doc('horarios/h1').delete());
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));

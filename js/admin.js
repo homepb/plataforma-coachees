@@ -294,12 +294,19 @@ Object.assign(ACOES, {
   async 'reabrir-venda'(t) { const v = C.vendas.find(x => x.id === t.dataset.id); await col('vendas').salvar(v.id, { status: 'pendente' }); v.status = 'pendente'; render(); },
   async 'confirmar-sessao'(t) {
     const p = C.pedidos.find(x => x.id === t.dataset.id);
-    await col('pedidos').salvar(p.id, { status: 'pago', pagoEm: hoje() }); p.status = 'pago';
+    // Com horário reservado na agenda, o pagamento já confirma a sessão.
+    const st = p.horarioId ? 'agendado' : 'pago';
+    await col('pedidos').salvar(p.id, { status: st, pagoEm: hoje() }); p.status = st;
+    if (p.horarioId) await col('horarios').salvar(p.horarioId, { status: 'confirmado' });
     const v = { nome: p.nome || nomeDe(p.coacheeId), email: p.email || '', produto: 'sessao', forma: 'Link de pagamento', valor: C.cfg.precoSessao || '', status: 'pago', data: p.data, confirmadoEm: hoje(), confirmadoPor: S.u.id, pedidoId: p.id };
     const id = await col('vendas').adicionar(v); C.vendas.unshift({ id, ...v });
-    toast('Pagamento confirmado. O pedido aparece no topo de "Precisam de você" do coach.'); render();
+    toast(p.horarioId ? `Pagamento confirmado. Sessão agendada: ${p.horario}.` : 'Pagamento confirmado. O pedido aparece no topo de "Precisam de você" do coach.'); render();
   },
-  async 'cancelar-sessao'(t) { const p = C.pedidos.find(x => x.id === t.dataset.id); await col('pedidos').salvar(p.id, { status: 'cancelado' }); p.status = 'cancelado'; render(); }
+  async 'cancelar-sessao'(t) {
+    const p = C.pedidos.find(x => x.id === t.dataset.id); await col('pedidos').salvar(p.id, { status: 'cancelado' }); p.status = 'cancelado';
+    if (p.horarioId) await col('horarios').salvar(p.horarioId, { status: 'livre', coacheeId: '', nome: '' }); // o horário volta para a agenda
+    render();
+  }
 });
 
 /* ===================== Ajustes (RF-65) ===================== */

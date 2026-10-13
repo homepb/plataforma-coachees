@@ -185,7 +185,8 @@ VIEWS.coachee.painel = () => {
   </div>
 
   ${enc ? `<div class="card encontro-faixa">${caixaData(enc.data)}<div class="tx"><small class="mu">Próximo encontro · ${enc.tipo === 'convidado' ? 'aula com convidado' : 'mentoria em grupo'} · ${esc(enc.hora || '')}</small><b>${esc(enc.titulo)}</b></div>
-    <button class="link-discreto" data-ir="comunidade">Ver todos</button>${urlSegura(enc.link) ? `<a class="bt bt-linha bt-sm" href="${esc(enc.link)}" target="_blank" rel="noopener">Entrar na sala</a>` : ''}</div>` : ''}`;
+    <button class="link-discreto" data-ir="comunidade">Ver todos</button>${urlSegura(enc.link) ? `<a class="bt bt-linha bt-sm" href="${esc(enc.link)}" target="_blank" rel="noopener">Entrar na sala</a>` : ''}</div>` : ''}
+  ${cartaoSessaoHoje()}`;
 };
 
 /* ===================== Minha jornada ===================== */
@@ -211,7 +212,7 @@ VIEWS.coachee.jornada = () => {
     ${trilhas.filter(t => !t.aParte).map(cartao).join('')}
     <div class="card ${a ? '' : 'ouro'}" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Certificado de conclusão</div><div class="mu">${a ? 'Liberado ao concluir as Trilhas I, II e III.' : 'Parabéns! Você concluiu o programa.'}</div></div>${a ? `<span class="cadeado">${LOCK} Bloqueado</span>` : '<button class="bt bt-ouro" data-ir="certificado">Ver certificado</button>'}</div>
     ${trilhas.filter(t => t.aParte).map(cartao).join('')}
-    <div class="extra-sessao"><span>Quer aprofundar algum ponto da jornada com ${esc(nomeCoach())}?</span><button class="link-discreto" data-acao="sessao">Comprar sessão individual</button></div>
+    <div class="extra-sessao"><span>Quer aprofundar algum ponto da jornada com ${esc(nomeCoach())}?</span><button class="link-discreto" data-ir="sessao">Marcar sessão individual</button></div>
     ${C.pedidos.length ? `<div class="extra-sessao"><span>Seu último pedido de sessão: ${({ aguardando: 'aguardando pagamento', pago: 'pago, aguardando o horário', agendado: 'agendado', cancelado: 'cancelado' })[C.pedidos[0].status] || esc(C.pedidos[0].status)} · ${brc(C.pedidos[0].data)}</span></div>` : ''}
   </div>`;
 };
@@ -300,7 +301,8 @@ VIEWS.coachee.item = () => {
   <div class="topo"><div><div class="sobre">Trilha ${esc(it.t.n)} · ${esc(it.t.titulo)} · ${it.tipo === 'passo' ? `passo ${it.k + 1} de ${it.total}` : `${it.k + 1} de ${it.total}`}</div><h1>${esc(it.titulo)}</h1>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ''}</div>
     <button class="bt bt-fantasma" data-ir="jornada">← Toda a trilha</button></div>
   ${corpo}
-  <div style="display:flex;justify-content:space-between;margin-top:14px">${navAnt}${navProx}</div>`;
+  <div style="display:flex;justify-content:space-between;margin-top:14px">${navAnt}${navProx}</div>
+  ${conviteSessao()}`;
 };
 
 function depoisDeConcluir(itemId) {
@@ -679,22 +681,6 @@ MUDA.rotina = async t => {
 };
 
 /* ===================== Sessão individual avulsa (RF-27, RN-12) ===================== */
-ACOES.sessao = () => {
-  const preco = C.cfg.precoSessao ? `R$ ${esc(C.cfg.precoSessao)}` : 'Valor informado no link de pagamento';
-  abrirModal('Comprar sessão individual', `
-    <p style="margin:0 0 14px">Uma conversa de ${esc(C.cfg.duracaoSessao || 60)} minutos, só você e o seu coach, para destravar um ponto específico da sua jornada.</p>
-    <div class="item" style="padding:10px 12px;margin-bottom:14px;background:var(--raised);border-radius:8px"><div class="tx"><b>Sessão avulsa · online</b><small>${preco}</small></div></div>
-    <label class="rotulo" for="ss-m">Sobre o que você quer conversar?</label><textarea class="campo" id="ss-m" rows="3" placeholder="Ex.: estou travada para delegar e preciso de ajuda para montar a conversa com a equipe"></textarea>
-    <label class="rotulo" for="ss-h">Melhores dias e horários</label><input class="campo" id="ss-h" placeholder="Ex.: terças e quintas de manhã">
-    <p class="mu" style="font-size:12.5px;margin:0">O horário é uma preferência; ${esc(nomeCoach())} confirma depois do pagamento.</p>`,
-  'Ir para o pagamento', async () => {
-    const motivo = valor('ss-m'); if (!motivo) { $('#ss-m').focus(); toast('Conte em uma frase sobre o que você quer conversar.'); return false; }
-    const doc = { coacheeId: S.u.id, nome: S.u.nome, email: S.u.email, motivo, horario: valor('ss-h') || 'A combinar', status: 'aguardando', data: hoje() };
-    const id = await col('pedidos').adicionar(doc); C.pedidos.unshift({ id, ...doc });
-    const link = urlSegura(C.cfg.pagSessao); if (link) window.open(link, '_blank', 'noopener');
-    toast(link ? 'Pedido registrado. Conclua o pagamento na aba que abriu.' : 'Pedido registrado. A administração vai enviar o link de pagamento.'); render();
-  });
-};
 
 /* ===================== Comunidade (RF-42, RF-43) ===================== */
 VIEWS.coachee.comunidade = () => {

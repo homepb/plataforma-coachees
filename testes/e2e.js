@@ -109,7 +109,12 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await p.click('#form-quest button[type=submit]'); await p.waitForTimeout(300);
     ok(await p.evaluate(() => C.D.assessments.some(a => a.tipo === 'ie')), 'inteligência emocional registrada');
     ok((await texto()).includes('Refazer na parada') && await p.$eval('[aria-describedby="libera-ie"]', b => b.disabled), 'assessment volta a bloquear até a próxima parada');
-    await ir('jornada'); await p.click('[data-acao="sessao"]'); await p.fill('#ss-m', 'Preparar a conversa com a diretoria'); await modalSalvar();
+    await ir('painel'); ok((await texto()).includes('Próximo horário livre'), 'Hoje mostra o próximo horário livre do coach');
+    await p.click('.sessao-faixa [data-ir="sessao"]'); await p.waitForTimeout(200);
+    ok(await p.$$eval('.agenda-dia .hora', b => b.length) >= 3, 'Sessão 1:1 mostra a agenda com horários livres');
+    const hid = await p.$eval('.agenda-dia .hora', b => b.dataset.id); await p.click(`.hora[data-id="${hid}"]`); await p.waitForTimeout(150);
+    await p.fill('#ss-m', 'Preparar a conversa com a diretoria'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(h => C.horarios.find(x => x.id === h).status === 'reservado' && C.pedidos[0].horarioId === h, hid) && !(await p.$(`.hora[data-id="${hid}"]`)), 'coachee reserva o horário (sai da lista de livres)');
     ok(await p.evaluate(() => C.pedidos.length === 1), 'pedido de sessão individual registrado');
     await ir('evolucao'); await foto('coachee-evolucao');
 
@@ -140,6 +145,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     for (const a of ['geral', 'acao', 'evolucao', 'assess', 'respostas']) { await p.click(`[data-aba="${a}"]`); await p.waitForTimeout(120); ok(!(await texto()).includes('Não foi possível'), `ficha: aba ${a}`); }
     await p.click('[data-acao="comentar"][data-alvo="a31"]'); await p.fill('#cm-t', 'Ótimo começo, Ana.'); await modalSalvar();
     ok(await p.evaluate(() => daCarteira('ana').D.comentarios.a31.texto === 'Ótimo começo, Ana.'), 'coach comenta a resposta');
+    await ir('agenda'); ok((await texto()).includes('reservado') && (await texto()).includes('Preparar a conversa com a diretoria'), 'coach vê na agenda o horário reservado e o assunto');
+    const antes = await p.evaluate(() => C.horarios.length);
+    await p.fill('#hr-h', '9h, 15:30'); await p.selectOption('#hr-r', '2'); await p.click('#form-horario button[type=submit]'); await p.waitForTimeout(300);
+    ok(await p.evaluate(n => C.horarios.length === n + 4 && C.horarios.some(x => x.hora === '09:00') && C.horarios.some(x => x.hora === '15:30'), antes), 'coach abre horários repetindo por semanas');
     await ir('ensino'); await p.click('.topo [data-acao="aula"]'); await p.fill('#au-t', 'Reuniões que geram decisão'); await p.fill('#au-v', 'https://youtu.be/dQw4w9WgXcQ'); await modalSalvar();
     ok(await p.evaluate(() => Object.values(C.itens).some(i => i.titulo === 'Reuniões que geram decisão')), 'coach publica aula com link do YouTube');
     // ---------- certificado (Modelo Clássico) ----------
@@ -196,7 +205,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await ir('entradas'); await p.click('[data-acao="confirmar-venda"]'); await modalSalvar(); await confirmacao();
     ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'rafael@demo.com') && C.vendas.find(v => v.email === 'rafael@demo.com').status === 'pago'), 'confirmar pagamento cria o acesso');
     await p.click('[data-acao="confirmar-sessao"]'); await p.waitForTimeout(200);
-    ok(await p.evaluate(() => C.pedidos[0].status === 'pago'), 'confirmar pagamento da sessão avulsa');
+    ok(await p.evaluate(() => C.pedidos[0].status === 'agendado' && Dados.col('horarios').obter(C.pedidos[0].horarioId).then(x => x.status === 'confirmado')), 'confirmar pagamento agenda a sessão no horário reservado');
     await ir('ajustes'); await p.fill('#aj-wa', 'https://chat.whatsapp.com/teste'); await p.click('#form-ajustes button[type=submit]'); await p.waitForTimeout(200);
     ok(await p.evaluate(() => C.cfg.whatsapp === 'https://chat.whatsapp.com/teste'), 'ajustes salvos');
     await p.click('[data-acao="instalar"]'); await p.waitForTimeout(200);

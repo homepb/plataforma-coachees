@@ -106,5 +106,8 @@ function SementeDemo() {
     v3: { nome: 'Paula Moreira', email: 'paula@demo.com', produto: 'master', forma: 'Boleto', status: 'expirado', data: dia(-16) }
   };
 
-  return { sessao: null, colecoes: { ...colecoes, ...conteudo, mensagens, perguntas, encontros, materiais, fornecedores, config, vendas, pedidos: {}, inscricoes: {} } };
+  // Agenda do Vinicius: horários livres nos próximos dias.
+  const horarios = {};
+  [[2, '09:00'], [2, '14:00'], [3, '18:30'], [5, '09:00'], [6, '10:00'], [9, '14:00']].forEach(([d, hora], k) => { horarios['hr' + k] = { coachId: 'vinicius', data: dia(d), hora, status: 'livre' }; });
+  return { sessao: null, colecoes: { ...colecoes, ...conteudo, mensagens, perguntas, encontros, materiais, fornecedores, config, vendas, pedidos: {}, inscricoes: {}, horarios } };
 }

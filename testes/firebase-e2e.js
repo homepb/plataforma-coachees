@@ -117,7 +117,8 @@ async function definirSenha(email, senha) {
   for (let i = 0; i < 10; i++) await p.check(`input[name="q${i}"][value="4"]`, { force: true });
   await p.click('#form-quest button[type=submit]'); await espera(1000);
   ok(await p.evaluate(() => C.D.assessments.length === 1), 'assessment de inteligência emocional gravado');
-  await ir('jornada'); await p.click('[data-acao="sessao"]'); await p.fill('#ss-m', 'Destravar a delegação'); await salvarModal();
+  // Sem horários abertos ainda: o pedido vai com a preferência de dias.
+  await ir('sessao'); await p.fill('#ss-h', 'terças de manhã'); await p.fill('#ss-m', 'Destravar a delegação'); await p.click('#form-sessao button[type=submit]'); await espera(1000);
   ok(await p.evaluate(() => C.pedidos.length === 1), 'pedido de sessão avulsa gravado');
 
   console.log('\n== coach ==');
@@ -156,6 +157,8 @@ async function definirSenha(email, senha) {
   ok((await p.textContent('#mt-u-info')).includes('manual-delegação.pdf'), 'PDF enviado sem Cloudinary mostra o nome do arquivo');
   await salvarModal();
   ok(await p.evaluate(() => /^arquivo:.+:3:manual-delega/.test(C.materiais[0].url)), 'material com PDF guardado no banco');
+  await ir('agenda'); await p.fill('#hr-h', '10:00'); await p.click('#form-horario button[type=submit]'); await espera(1200);
+  ok(await p.evaluate(() => C.horarios.length === 1 && C.horarios[0].status === 'livre'), 'coach abre horário na agenda (regra aceita)');
 
   console.log('\n== coachee de novo ==');
   await entrar('ana@teste.com', 'Ana12345!');
@@ -166,15 +169,21 @@ async function definirSenha(email, senha) {
   const [aba] = await Promise.all([p.context().waitForEvent('page'), p.click('[data-acao="abrir-arquivo"]')]); await espera(1500);
   // O navegador de teste (sem tela) não mostra PDF; basta conferir que a aba abriu e que o arquivo veio inteiro.
   ok(!!aba && await p.evaluate(async () => { const u = Object.values(arquivosCache)[0]; const b = u && await (await fetch(u)).blob(); return !!b && b.size === 1200009 && b.type === 'application/pdf'; }), 'coachee abre o PDF da biblioteca (arquivo inteiro, em nova aba)');
-  await aba.close(); await ir('painel');
+  await aba.close();
+  await ir('sessao'); await p.click('.agenda-dia .hora'); await p.fill('#ss-m', 'Montar a conversa com a diretoria'); await p.click('#form-sessao button[type=submit]'); await espera(1500);
+  ok(await p.evaluate(() => C.horarios[0].status === 'reservado' && C.pedidos.some(x => x.horarioId === C.horarios[0].id)), 'coachee reserva o horário do coach (regra aceita)');
+  await ir('painel');
   await p.fill('#pergunta-resp', 'O relatório mensal.'); await p.click('#form-pergunta button'); await espera(800);
   await ir('item', 'e3'); ok((await texto()).includes('Meta clara. Vamos juntos.'), 'coachee vê o comentário do coach');
   await ir('item', 'a12'); ok(!!(await p.$('.video iframe')), 'aula com vídeo do YouTube dentro da plataforma');
 
   console.log('\n== administrador de novo ==');
   await entrar('admin@teste.com', 'Teste123!');
-  await ir('entradas'); await p.click('[data-acao="confirmar-sessao"]'); await espera(1000);
-  ok(await p.evaluate(() => C.pedidos[0].status === 'pago'), 'administrador confirma o pagamento da sessão');
+  await ir('entradas');
+  await p.click(`[data-acao="confirmar-sessao"][data-id="${await p.evaluate(() => C.pedidos.find(x => !x.horarioId).id)}"]`); await espera(1000);
+  ok(await p.evaluate(() => C.pedidos.find(x => !x.horarioId).status === 'pago'), 'administrador confirma o pagamento da sessão');
+  await p.click(`[data-acao="confirmar-sessao"][data-id="${await p.evaluate(() => C.pedidos.find(x => x.horarioId).id)}"]`); await espera(1000);
+  ok(await p.evaluate(async () => { const x = C.pedidos.find(q => q.horarioId); return x.status === 'agendado' && (await Dados.col('horarios').obter(x.horarioId)).status === 'confirmado'; }), 'pagamento da sessão com horário já deixa a sessão agendada');
   ok(await p.evaluate(() => { const a = C.usuarios.find(u => u.email === 'ana@teste.com'); return a.resumo && a.resumo.pct > 0; }), 'resumo do progresso chega ao administrador');
   // Coachee nunca é administrador: a administradora não consegue virar coachee.
   await ir('pessoas'); await p.click(`[data-acao="pessoa"][data-id="${await p.evaluate(() => S.u.id)}"]`);
