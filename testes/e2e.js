@@ -2,7 +2,7 @@
 // Uso: node testes/e2e.js   (variável PLAYWRIGHT_PATH aponta para o módulo, se não estiver no projeto)
 const path = require('path');
 const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
-const URL = 'file://' + path.resolve(__dirname, '..', 'index.html');
+const URL = 'file://' + path.resolve(__dirname, '..', 'index.html') + '?demo';
 const SAIDA = process.env.CAPTURAS || '';
 
 let falhas = 0;

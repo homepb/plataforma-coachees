@@ -21,7 +21,7 @@
 <script src="js/config.js"></script>
 <script>
   // O SDK do Firebase só é carregado quando há credenciais; sem elas a plataforma roda em modo demonstração.
-  if (window.FIREBASE_CONFIG) {
+  if (window.FIREBASE_CONFIG && !/[?&]demo(=|&|$)/.test(location.search)) {
     ['app', 'auth', 'firestore'].forEach(m => document.write(`<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-${m}-compat.js"><\/script>`));
   }
 </script>
