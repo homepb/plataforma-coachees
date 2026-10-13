@@ -157,11 +157,11 @@ const Regras = (() => {
     if (u.fim && u.fim < h) return { st: 'vencido', nota: 'Acesso encerrado' };
     const sem = u.ultimoAcesso ? dias(u.ultimoAcesso, h) : null;
     if (u.fim && dias(h, u.fim) <= 30) return { st: 'renovar', nota: `Acesso termina em ${dias(h, u.fim)} dias` };
-    if (sem === null && dias(u.inicio, h) <= 7) return { st: 'novo', nota: `Começou em ${u.inicio.slice(8, 10)}/${u.inicio.slice(5, 7)}` };
+    // Novo: só nos primeiros 7 dias do programa, tenha acessado ou não. Depois disso: Parado, Atenção ou Em dia.
+    if (dias(u.inicio, h) <= 7) return { st: 'novo', nota: `Começou em ${u.inicio.slice(8, 10)}/${u.inicio.slice(5, 7)}${sem === null ? ' · ainda não acessou' : ''}` };
     if (sem === null || sem > 7) return { st: 'parado', nota: sem === null ? 'Ainda não acessou' : `Sem acessar há ${sem} dias` };
     const at = D ? D.acoes.filter(a => atrasada(a, h)).length : (u.resumo && u.resumo.atrasadas) || 0;
     if (at) return { st: 'atencao', nota: at === 1 ? '1 ação atrasada' : `${at} ações atrasadas` };
-    if (dias(u.inicio, h) <= 14) return { st: 'novo', nota: `Começou em ${u.inicio.slice(8, 10)}/${u.inicio.slice(5, 7)}` };
     return { st: 'ok', nota: 'Em dia' };
   }
   const ORDEM_ATENCAO = { atencao: 1, parado: 2, renovar: 3 };

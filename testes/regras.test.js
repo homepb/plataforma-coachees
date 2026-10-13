@@ -89,6 +89,11 @@ test('situação e "Precisam de você" na ordem certa (RN-08)', () => {
   assert.equal(R.situacao({ ...base, fim: '2026-10-01' }, D, h).st, 'vencido');
   const comAtraso = vazio(); comAtraso.acoes.push({ ok: false, prazo: '2026-10-01' });
   assert.equal(R.situacao(base, comAtraso, h).st, 'atencao');
+  // Novo só nos primeiros 7 dias; do 8º dia em diante, Em dia (ou Parado, se nunca acessou).
+  assert.equal(R.situacao({ ...base, inicio: '2026-10-03' }, D, h).st, 'novo');
+  assert.equal(R.situacao({ ...base, inicio: '2026-10-03', ultimoAcesso: null }, D, h).st, 'novo');
+  assert.equal(R.situacao({ ...base, inicio: '2026-10-01' }, D, h).st, 'ok');
+  assert.equal(R.situacao({ ...base, inicio: '2026-10-01', ultimoAcesso: null }, D, h).st, 'parado');
   const lista = R.precisam([
     { u: { ...base, id: 'r', fim: '2026-10-30' }, D },
     { u: { ...base, id: 'p', ultimoAcesso: '2026-09-01' }, D },
