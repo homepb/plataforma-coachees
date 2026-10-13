@@ -7,7 +7,7 @@ const FORMS = {};   // envio de <form id>
 const MUDA = {};    // change em campos com [data-muda]
 
 // S = estado da tela; C = dados carregados do banco.
-const S = { u: null, pronto: false, view: 'painel', p: null, aba: 'geral', busca: '', filtro: 'todos', buscaMat: '', resp: {}, simAreas: false, emailLogin: '' };
+const S = { u: null, modo: null, pronto: false, view: 'painel', p: null, aba: 'geral', busca: '', filtro: 'todos', buscaMat: '', resp: {}, simAreas: false, emailLogin: '' };
 const C = { cfg: {}, trilhas: {}, itens: {}, L: [], mensagens: [], perguntas: [], encontros: [], materiais: [], fornecedores: [] };
 
 /* ===================== Utilidades ===================== */
@@ -96,17 +96,22 @@ async function carregarCoachee(id) {
   };
 }
 
+// Perfis da pessoa: o principal (papel) e, quando marcado, também o de administrador.
+const modos = u => (u.admin && u.papel !== 'admin') ? [u.papel, 'admin'] : [u.papel];
+const lerModo = u => { try { const m = localStorage.getItem('modo-' + u.id); return modos(u).includes(m) ? m : u.papel; } catch (e) { return u.papel; } };
+const gravarModo = (u, m) => { try { localStorage.setItem('modo-' + u.id, m); } catch (e) { /* só nesta visita */ } };
+
 async function carregar() {
   await carregarConteudo();
-  const u = S.u;
-  if (u.papel === 'coachee') {
+  const u = S.u; const modo = S.modo || u.papel;
+  if (modo === 'coachee') {
     C.D = await carregarCoachee(u.id);
     C.ouvidas = new Set((await col('ouvidas').listar('coacheeId', u.id)).map(o => o.msgId));
     C.pedidos = (await col('pedidos').listar('coacheeId', u.id)).sort(recente);
     C.inscrito = !!(await col('inscricoes').obter(u.id));
   }
-  if (u.papel === 'coach') await carregarCarteira();
-  if (u.papel === 'admin') {
+  if (modo === 'coach') await carregarCarteira();
+  if (modo === 'admin') {
     const [usuarios, vendas, pedidos] = await Promise.all([col('usuarios').listar(), col('vendas').listar(), col('pedidos').listar()]);
     C.usuarios = usuarios; C.vendas = vendas.sort(recente); C.pedidos = pedidos.sort(recente);
   }
@@ -163,7 +168,7 @@ function render() {
   if (!S.pronto) { r.innerHTML = '<div class="carregando">Carregando…</div>'; return; }
   if (!S.u) { r.innerHTML = telaLogin(); return; }
   const bloqueio = telaBloqueio(); if (bloqueio) { r.innerHTML = bloqueio; return; }
-  const papel = S.u.papel; const nav = NAV[papel];
+  const papel = S.modo || S.u.papel; const nav = NAV[papel];
   const view = VIEWS[papel][S.view] ? S.view : 'painel';
   const ativo = ATIVO[papel][view] || view;
   let conteudo;
@@ -181,10 +186,19 @@ function render() {
     </aside>
     <main class="palco">
       ${Dados.demo ? faixaDemo() : ''}
+      ${faixaModo()}
       ${conteudo}
     </main>
   </div>`;
   if (papel === 'coachee') posRenderCoachee();
+}
+
+// Quem tem dois perfis (ex.: coach e administrador) troca de perfil por esta faixa.
+function faixaModo() {
+  const ms = modos(S.u); if (ms.length < 2) return '';
+  const nome = { coachee: 'Coachee', coach: 'Coach', admin: 'Administrador' };
+  return `<div class="faixa-demo nao-imprimir"><span>Você está como <b class="ouro-tx">${nome[S.modo]}</b>.</span>
+    <div class="trocar">${ms.filter(m => m !== S.modo).map(m => `<button data-acao="trocar-modo" data-modo="${m}">Trocar para ${nome[m]}</button>`).join('')}</div></div>`;
 }
 
 function faixaDemo() {
@@ -233,7 +247,7 @@ function telaBloqueio() {
   if (u.semCadastro) return caixa('Acesso em preparação', 'Seu login existe, mas o cadastro ainda não foi concluído pela administração. Fale com o programa pelo grupo do WhatsApp.');
   if (u.ativo === false) return caixa('Acesso desativado', 'Seu acesso está desativado. Fale com a administração do programa.');
   // RN-11 / RF-07: ao fim do prazo, convite para renovar; os dados ficam guardados.
-  if (u.papel === 'coachee' && u.fim && u.fim < hoje()) {
+  if (S.modo === 'coachee' && u.fim && u.fim < hoje()) {
     const link = urlSegura(C.cfg.pagMaster);
     return caixa('Seu ciclo terminou', `Seu acesso ao plano Master foi até ${br(u.fim)}. Tudo o que você construiu continua guardado: renove para seguir de onde parou.`,
       `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px">${link ? `<a class="bt bt-ouro" href="${esc(link)}" target="_blank" rel="noopener">Renovar o plano</a>` : ''}${botaoWhats()}</div>`);
@@ -244,7 +258,7 @@ function telaBloqueio() {
 // RF-06: aceite do termo de uso e do aviso de privacidade no primeiro acesso.
 function pedirTermos() {
   const T = CONTEUDO.TERMOS;
-  if (!S.u || S.u.papel !== 'coachee' || (S.u.termos && S.u.termos.versao === T.versao)) return;
+  if (!S.u || S.modo !== 'coachee' || (S.u.termos && S.u.termos.versao === T.versao)) return;
   abrirModal('Antes de começar', `<div class="termos">${T.html}</div>
     <label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" class="ck" id="aceite"> <span>Li e aceito o termo de uso e o aviso de privacidade.</span></label>`,
   'Começar minha jornada', async () => {
@@ -256,7 +270,7 @@ function pedirTermos() {
 }
 
 async function iniciarSessao(u) {
-  S.u = u; S.pronto = false; render();
+  S.u = u; S.modo = u ? lerModo(u) : null; S.pronto = false; render();
   try {
     if (u && !u.semCadastro) {
       await carregar();
@@ -270,6 +284,11 @@ async function iniciarSessao(u) {
 /* ===================== Ações comuns ===================== */
 Object.assign(ACOES, {
   async sair() { $('#modal').open && $('#modal').close(); await Dados.sair(); },
+  async 'trocar-modo'(t) {
+    S.modo = t.dataset.modo; gravarModo(S.u, S.modo); S.pronto = false; render();
+    try { await carregar(); } catch (e) { falha(e); }
+    S.view = 'painel'; S.p = null; S.pronto = true; render(); window.scrollTo(0, 0); pedirTermos();
+  },
   'demo-perfil'(t) { S.emailLogin = t.dataset.email; render(); },
   async 'demo-entrar'(t) { await Dados.sair(); S.emailLogin = t.dataset.email; await Dados.entrar(t.dataset.email); },
   'demo-reiniciar'() { confirmar('Reiniciar a demonstração', 'Os dados de exemplo voltam ao estado inicial neste navegador.', 'Reiniciar', () => { Dados.reiniciar(); }); },

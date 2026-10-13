@@ -11,7 +11,8 @@ service cloud.firestore {
     function logado() { return request.auth != null; }
     function eu() { return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data; }
     function ativo() { return eu().get('ativo', true) != false; }
-    function admin() { return logado() && eu().papel == 'admin' && ativo(); }
+    // Administrador: o papel principal é admin, ou o coach/coachee tem também o acesso de administrador.
+    function admin() { return logado() && (eu().papel == 'admin' || eu().get('admin', false) == true) && ativo(); }
     function coach() { return logado() && eu().papel == 'coach' && ativo(); }
     function equipe() { return admin() || coach(); }
     function dono(cid) { return logado() && request.auth.uid == cid; }
@@ -24,7 +25,8 @@ service cloud.firestore {
       allow read: if dono(uid) || admin() || (coach() && resource.data.get('coachId', '') == request.auth.uid);
       // O coach cadastra coachees só na própria carteira.
       allow create: if admin()
-        || (coach() && request.resource.data.papel == 'coachee' && request.resource.data.coachId == request.auth.uid);
+        || (coach() && request.resource.data.papel == 'coachee' && request.resource.data.coachId == request.auth.uid
+            && request.resource.data.get('admin', false) == false);
       // O coachee só altera foto, último acesso, aceite dos termos e o resumo do próprio progresso.
       allow update: if admin()
         || (dono(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['foto', 'ultimoAcesso', 'termos', 'resumo']))

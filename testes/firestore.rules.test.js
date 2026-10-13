@@ -118,6 +118,23 @@ test('conteúdo: todos leem, só a equipe publica', async () => {
   await assertFails(env.unauthenticatedContext().firestore().doc('itens/a11').get());
 });
 
+test('coach ou coachee com acesso de administrador', async () => {
+  await env.withSecurityRulesDisabled(async ctx => {
+    const f = ctx.firestore();
+    await f.doc('usuarios/vinadm').set({ nome: 'Vini Adm', papel: 'coach', admin: true });
+    await f.doc('usuarios/polly').set({ nome: 'Polly', papel: 'coachee', admin: true, coachId: 'vinadm' });
+  });
+  await assertSucceeds(db('vinadm').collection('usuarios').get());
+  await assertSucceeds(db('vinadm').doc('vendas/v1').get());
+  await assertSucceeds(doCoachee('vinadm', 'polly'));
+  await assertFails(doCoachee('vinadm', 'ana'));
+  await assertSucceeds(db('polly').collection('usuarios').get());
+  await assertFails(doCoachee('polly', 'ana'));
+  // Ninguém se dá acesso de administrador sozinho.
+  await assertFails(db('ana').doc('usuarios/ana').update({ admin: true }));
+  await assertFails(db('vini').doc('usuarios/novo7').set({ nome: 'X', papel: 'coachee', coachId: 'vini', admin: true }));
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));

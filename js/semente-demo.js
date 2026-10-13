@@ -6,7 +6,7 @@ function SementeDemo() {
 
   const usuarios = {
     admin: { nome: 'Administração', email: 'admin@demo.com', papel: 'admin', ativo: true },
-    vinicius: { nome: 'Vinicius', email: 'vinicius@demo.com', papel: 'coach', ativo: true },
+    vinicius: { nome: 'Vinicius', email: 'vinicius@demo.com', papel: 'coach', admin: true, ativo: true },
     mariana: { nome: 'Mariana Costa', email: 'mariana@demo.com', papel: 'coach', ativo: true }
   };
   const coachee = (id, nome, cargo, coachId, inicioDesloc, acessoDesloc, extra = {}) => {

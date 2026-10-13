@@ -70,7 +70,7 @@ async function definirSenha(email, senha) {
   ok(await p.evaluate(() => C.L.length === 20), 'conteúdo inicial instalado (20 itens)');
   await p.fill('#aj-wa', 'https://chat.whatsapp.com/teste'); await p.click('#form-ajustes button[type=submit]'); await espera(600);
   await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]'); await p.selectOption('#pe-papel', 'coach');
-  await p.fill('#pe-nome', 'Vinicius'); await p.fill('#pe-email', 'vinicius@teste.com'); await salvarModal(); await espera(800);
+  await p.fill('#pe-nome', 'Vinicius'); await p.fill('#pe-email', 'vinicius@teste.com'); await p.check('#pe-admin', { force: true }); await salvarModal(); await espera(800);
   ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'vinicius@teste.com' && u.papel === 'coach')), 'coach criado (login + cadastro + e-mail de senha)');
   await ir('pessoas'); await p.click('.topo [data-acao="pessoa"]');
   await p.fill('#pe-nome', 'Ana Souza'); await p.fill('#pe-email', 'ana@teste.com'); await salvarModal(); await espera(800);
@@ -118,6 +118,10 @@ async function definirSenha(email, senha) {
 
   console.log('\n== coach ==');
   await entrar('vinicius@teste.com', 'Vini1234!');
+  ok(await p.evaluate(() => S.modo === 'coach') && (await texto()).includes('Trocar para Administrador'), 'coach com acesso de administrador vê a troca de perfil');
+  await p.click('[data-acao="trocar-modo"]'); await espera(1500);
+  ok((await texto()).includes('Como estamos') && await p.evaluate(() => C.usuarios.length >= 4), 'coach troca para Administrador e vê Pessoas (regras aceitam)');
+  await p.click('[data-acao="trocar-modo"]'); await espera(1500);
   ok(await p.evaluate(() => C.carteira.map(c => c.u.email).sort().join() === 'ana@teste.com,rafael@teste.com'), 'coach vê a própria carteira (Ana e Rafael)');
   ok((await texto()).includes('Pediu uma sessão individual'), 'pedido de sessão em "Precisam de você"');
   await ir('ficha', (await p.evaluate(() => C.carteira[0].u.id)));
@@ -148,6 +152,15 @@ async function definirSenha(email, senha) {
   await ir('entradas'); await p.click('[data-acao="confirmar-sessao"]'); await espera(1000);
   ok(await p.evaluate(() => C.pedidos[0].status === 'pago'), 'administrador confirma o pagamento da sessão');
   ok(await p.evaluate(() => { const a = C.usuarios.find(u => u.email === 'ana@teste.com'); return a.resumo && a.resumo.pct > 0; }), 'resumo do progresso chega ao administrador');
+  // Administradora que também é coachee: edita o próprio cadastro e troca de perfil.
+  await ir('pessoas'); await p.click(`[data-acao="pessoa"][data-id="${await p.evaluate(() => S.u.id)}"]`);
+  await p.selectOption('#pe-papel', 'coachee'); await p.check('#pe-admin', { force: true }); await salvarModal();
+  ok(await p.evaluate(() => S.u.papel === 'coachee' && S.u.admin === true && !!S.u.coachId), 'administradora passa a ser coachee + administradora');
+  await p.click('[data-acao="trocar-modo"]'); await espera(1500);
+  if (await p.$('#aceite')) { await p.check('#aceite', { force: true }); await salvarModal(); }
+  ok(await p.evaluate(() => S.modo === 'coachee') && (await texto()).includes('Minha jornada'), 'administradora troca para Coachee e vê a própria jornada');
+  await p.click('[data-acao="trocar-modo"]'); await espera(1500);
+  ok((await texto()).includes('Como estamos'), 'e volta para Administrador');
 
   ok(erros.length === 0, 'nenhum erro nem permissão negada' + (erros.length ? ': ' + erros.join(' | ') : ''));
   await b.close(); servidor.close();

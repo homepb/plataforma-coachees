@@ -6,6 +6,7 @@ const coachees = () => (C.usuarios || []).filter(u => u.papel === 'coachee');
 const ativos = () => coachees().filter(u => u.ativo !== false && (!u.fim || u.fim >= hoje()));
 const nomeDe = id => ((C.usuarios || []).find(u => u.id === id) || {}).nome || '—';
 const TIPO = { coachee: 'Coachee', coach: 'Coach', admin: 'Administrador' };
+const tipoDe = u => TIPO[u.papel] + (u.admin && u.papel !== 'admin' ? ' + Administrador' : '');
 const chipVenda = st => ({ pago: '<span class="chip ok">pago</span>', pendente: '<span class="chip warn">aguardando</span>', expirado: '<span class="chip bad">expirado</span>' })[st] || '';
 const PRODUTO = { master: 'Plano Master', sessao: 'Sessão individual', renovacao: 'Renovação Master' };
 
@@ -54,7 +55,7 @@ VIEWS.admin.pessoas = () => {
   <div class="card" style="padding-top:6px"><div class="tabela-wrap"><table>
     <thead><tr><th>Nome</th><th>Tipo</th><th>Coach</th><th>Acesso até</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead>
     <tbody>${lista.map(u => `<tr><td><div class="pessoa">${av(u, u.papel === 'coachee' ? '' : 'cinza')}<div><b>${esc(u.nome)}</b><small>${esc(u.email)}</small></div></div></td>
-      <td><span class="chip ${u.papel === 'coach' ? 'ouro' : ''}">${TIPO[u.papel]}</span></td><td>${u.papel === 'coachee' ? esc(nomeDe(u.coachId)) : '—'}</td><td class="num">${u.fim ? br(u.fim) : '—'}</td>
+      <td><span class="chip ${u.papel === 'coach' ? 'ouro' : ''}">${tipoDe(u)}</span></td><td>${u.papel === 'coachee' ? esc(nomeDe(u.coachId)) : '—'}</td><td class="num">${u.fim ? br(u.fim) : '—'}</td>
       <td class="mu num">${u.ultimoAcesso ? br(u.ultimoAcesso) : 'nunca'}</td><td>${situ(u)}</td>
       <td style="text-align:right;white-space:nowrap"><button class="bt bt-fantasma bt-sm" data-acao="reenviar" data-id="${u.id}">Reenviar acesso</button> <button class="bt bt-fantasma bt-sm" data-acao="pessoa" data-id="${u.id}">Editar</button></td></tr>`).join('') || '<tr><td colspan="7" class="vazio">Ninguém encontrado.</td></tr>'}</tbody>
   </table></div></div>`;
@@ -108,33 +109,39 @@ ACOES.pessoa = t => {
     <label class="rotulo" for="pe-nome">Nome</label><input class="campo" id="pe-nome" value="${esc(u.nome || '')}" placeholder="Nome completo">
     <label class="rotulo" for="pe-email">E-mail</label><input class="campo" id="pe-email" type="email" value="${esc(u.email || '')}" ${id ? 'readonly' : ''} placeholder="nome@empresa.com.br">
     <div class="duas">
-      <div><label class="rotulo" for="pe-papel">Tipo</label><select class="campo" id="pe-papel" ${id ? 'disabled' : ''}>${Object.entries(TIPO).map(([k, l]) => `<option value="${k}" ${u.papel === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div><label class="rotulo" for="pe-papel">Tipo</label><select class="campo" id="pe-papel">${Object.entries(TIPO).map(([k, l]) => `<option value="${k}" ${u.papel === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div><label class="rotulo" for="pe-cargo">Cargo / empresa</label><input class="campo" id="pe-cargo" value="${esc(u.cargo || '')}"></div>
       <div><label class="rotulo" for="pe-coach">Coach responsável</label><select class="campo" id="pe-coach">${cs.map(c => `<option value="${c.id}" ${u.coachId === c.id ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>
       <div><label class="rotulo" for="pe-ini">Início</label><input class="campo" id="pe-ini" type="date" value="${esc(u.inicio || hoje())}"></div>
-      ${id && u.papel === 'coachee' ? `<div><label class="rotulo" for="pe-fim">Acesso até</label><input class="campo" id="pe-fim" type="date" value="${esc(u.fim || '')}"></div>` : ''}
+      ${id && u.papel === 'coachee' ? `<div><label class="rotulo" for="pe-fim">Acesso até (coachee)</label><input class="campo" id="pe-fim" type="date" value="${esc(u.fim || '')}"></div>` : ''}
     </div>
+    <p class="mu" style="font-size:12px;margin:-6px 0 10px">Coach responsável, início e fim valem só para coachees.</p>
+    <label style="display:flex;gap:10px;align-items:center;margin:2px 0 10px"><input type="checkbox" class="ck" id="pe-admin" ${u.admin ? 'checked' : ''}> Também tem acesso de administrador <span class="mu" style="font-size:12px">(para coach ou coachee)</span></label>
     ${id ? `<label style="display:flex;gap:10px;align-items:center;margin:2px 0 10px"><input type="checkbox" class="ck" id="pe-ativo" ${u.ativo !== false ? 'checked' : ''}> Acesso ativo</label>
       ${u.papel === 'coachee' ? `<button type="button" class="bt bt-linha bt-sm" data-acao="renovar" data-id="${u.id}">Renovar por mais 12 meses</button>` : ''}`
     : '<p class="mu" style="font-size:12.5px;margin:0">Para coachees, o fim do acesso é calculado em 12 meses. A pessoa recebe um e-mail para criar a senha.</p>'}`,
   id ? 'Salvar' : 'Criar e enviar acesso', async () => {
-    const nome = valor('pe-nome'), email = valor('pe-email'), papel = id ? u.papel : valor('pe-papel');
+    const nome = valor('pe-nome'), email = valor('pe-email'), papel = valor('pe-papel');
     if (!nome) { toast('Informe o nome.'); return false; }
     if (!/^\S+@\S+\.\S+$/.test(email)) { toast('Informe um e-mail válido.'); return false; }
-    const d = { nome, cargo: valor('pe-cargo') };
+    const d = { nome, cargo: valor('pe-cargo'), papel, admin: papel !== 'admin' && $('#pe-admin').checked };
+    // Ninguém tira o próprio acesso de administrador (evita ficar sem ninguém para administrar).
+    if (id === S.u.id && papel !== 'admin' && !d.admin) { toast('Você não pode tirar o seu próprio acesso de administrador.'); return false; }
     if (papel === 'coachee') {
-      const co = cs.find(c => c.id === valor('pe-coach')); if (!co) { toast('Cadastre um coach antes.'); return false; }
+      const co = cs.find(c => c.id === valor('pe-coach') && c.id !== id); if (!co) { toast('Escolha o coach responsável (cadastre um coach antes, se preciso).'); return false; }
       Object.assign(d, { coachId: co.id, coachNome: co.nome, inicio: valor('pe-ini') || hoje() });
-      d.fim = id ? (valor('pe-fim') || R.fimDoAcesso(d.inicio)) : R.fimDoAcesso(d.inicio);
+      d.fim = id && u.papel === 'coachee' ? (valor('pe-fim') || R.fimDoAcesso(d.inicio)) : R.fimDoAcesso(d.inicio);
     }
     if (id) {
       d.ativo = $('#pe-ativo').checked;
+      if (id === S.u.id && !d.ativo) { toast('Você não pode desativar o seu próprio acesso.'); return false; }
       await col('usuarios').salvar(id, d); Object.assign(u, d);
+      if (id === S.u.id) Object.assign(S.u, d);
       // Coach renomeado: atualiza o nome mostrado aos coachees da carteira.
       if (papel === 'coach') await Promise.all(coachees().filter(c => c.coachId === id).map(c => { c.coachNome = nome; return col('usuarios').salvar(c.id, { coachNome: nome }); }));
       toast('Cadastro atualizado.');
     } else {
-      const novo = { ...d, email, papel, ativo: true, criado: hoje() };
+      const novo = { ...d, email, ativo: true, criado: hoje() };
       const r = await criarPessoa(novo);
       if (papel === 'coachee') confirmarCadastro(novo, r); else toast(`Acesso criado. ${primeiroNome(nome)} recebe o e-mail para criar a senha.`);
     }
