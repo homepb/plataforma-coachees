@@ -115,7 +115,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     const hid = await p.$eval('.agenda-dia .hora', b => b.dataset.id); await p.click(`.hora[data-id="${hid}"]`); await p.waitForTimeout(150);
     await p.fill('#ss-m', 'Preparar a conversa com a diretoria'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
     ok(await p.evaluate(h => C.horarios.find(x => x.id === h).status === 'reservado' && C.pedidos[0].horarioId === h, hid) && !(await p.$(`.hora[data-id="${hid}"]`)), 'coachee reserva o horário (sai da lista de livres)');
-    ok(await p.evaluate(() => C.pedidos.length === 1), 'pedido de sessão individual registrado');
+    // Segunda reserva: as duas sessões continuam aparecendo.
+    await p.click('.agenda-dia .hora'); await p.fill('#ss-m', 'Revisar o plano de ação'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
+    ok(await p.$$eval('.minhas-sessoes .sessao-minha', c => c.length) === 2 && (await texto()).includes('Preparar a conversa com a diretoria') && (await texto()).includes('Revisar o plano de ação'), 'duas sessões reservadas aparecem juntas');
+    ok(await p.evaluate(() => C.pedidos.length === 2), 'pedidos de sessão individual registrados');
     await ir('evolucao'); await foto('coachee-evolucao');
 
     // ---------- coach ----------
@@ -208,7 +211,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await ir('entradas'); await p.click('[data-acao="confirmar-venda"]'); await modalSalvar(); await confirmacao();
     ok(await p.evaluate(() => C.usuarios.some(u => u.email === 'rafael@demo.com') && C.vendas.find(v => v.email === 'rafael@demo.com').status === 'pago'), 'confirmar pagamento cria o acesso');
     await p.click('[data-acao="confirmar-sessao"]'); await p.waitForTimeout(200);
-    ok(await p.evaluate(() => C.pedidos[0].status === 'agendado' && Dados.col('horarios').obter(C.pedidos[0].horarioId).then(x => x.status === 'confirmado')), 'confirmar pagamento agenda a sessão no horário reservado');
+    ok(await p.evaluate(() => C.pedidos.some(q => q.status === 'agendado') && Dados.col('horarios').obter(C.pedidos.find(q => q.status === 'agendado').horarioId).then(x => x.status === 'confirmado')), 'confirmar pagamento agenda a sessão no horário reservado');
     await ir('ajustes'); await p.fill('#aj-wa', 'https://chat.whatsapp.com/teste'); await p.click('#form-ajustes button[type=submit]'); await p.waitForTimeout(200);
     ok(await p.evaluate(() => C.cfg.whatsapp === 'https://chat.whatsapp.com/teste'), 'ajustes salvos');
     await p.click('[data-acao="instalar"]'); await p.waitForTimeout(200);

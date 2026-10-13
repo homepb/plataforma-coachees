@@ -607,3 +607,5 @@ button.hora:hover{border-color:var(--gold)}
 .convite-sessao .link-discreto{color:var(--gold-2);font-weight:600}
 .pdf-assess{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
 .pdf-assess small{font-size:12px}
+.minhas-sessoes{margin-bottom:16px}
+.minhas-sessoes .sessao-minha{margin-bottom:10px}

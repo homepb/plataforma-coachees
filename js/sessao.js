@@ -16,12 +16,17 @@ function horariosLivres() {
   const h = hoje(); const agora = new Date().toTimeString().slice(0, 5);
   return (C.horarios || []).filter(x => x.status === 'livre' && (x.data > h || (x.data === h && x.hora > agora))).sort(ordemHorario);
 }
-const pedidoAtivo = () => (C.pedidos || []).find(p => p.status === 'aguardando' || p.status === 'pago' || (p.status === 'agendado' && (!p.quando || p.quando >= hoje())));
+// Todas as sessões em aberto do coachee (aguardando pagamento, pagas ou confirmadas que ainda não passaram),
+// da mais próxima para a mais distante. Pedidos sem horário escolhido ficam no fim.
+const pedidosAtivos = () => (C.pedidos || []).filter(p => p.status === 'aguardando' || p.status === 'pago' || (p.status === 'agendado' && (!p.quando || p.quando >= hoje())))
+  .sort((a, b) => ((a.quando || '9999') + (a.hora || '')).localeCompare((b.quando || '9999') + (b.hora || '')));
+const cartaoMinhaSessao = p => `<div class="card ouro sessao-minha"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><div class="pp-rot">Sua sessão · ${PEDIDO_ST[p.status] || esc(p.status)}</div><b style="font-size:18px">${esc(p.horario)}</b><small class="mu">"${esc(p.motivo)}"</small></div>
+    ${p.status === 'aguardando' && urlSegura(C.cfg.pagSessao) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(C.cfg.pagSessao))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : ''}</div>`;
 
 // Cartão do Hoje: a sessão marcada ou um convite com o próximo horário livre.
 function cartaoSessaoHoje() {
-  const p = pedidoAtivo();
-  if (p) return `<div class="card sessao-faixa"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><small class="mu">Sua sessão individual com ${esc(nomeCoach())} · ${PEDIDO_ST[p.status] || esc(p.status)}</small><b>${esc(p.horario)}</b></div><button class="link-discreto" data-ir="sessao">Ver detalhes</button></div>`;
+  const ps = pedidosAtivos(); const p = ps[0];
+  if (p) return `<div class="card sessao-faixa"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><small class="mu">${ps.length > 1 ? `Suas ${ps.length} sessões individuais com ${esc(nomeCoach())} · a próxima` : `Sua sessão individual com ${esc(nomeCoach())}`} · ${PEDIDO_ST[p.status] || esc(p.status)}</small><b>${esc(p.horario)}${ps.length > 1 ? ` <span class="mu" style="font-weight:500">+ ${ps.length - 1}</span>` : ''}</b></div><button class="link-discreto" data-ir="sessao">Ver ${ps.length > 1 ? 'todas' : 'detalhes'}</button></div>`;
   const prox = horariosLivres()[0];
   return `<div class="card sessao-faixa"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><small class="mu">Sessão individual com ${esc(nomeCoach())} · ${esc(C.cfg.duracaoSessao || 60)} min</small><b>${prox ? `Próximo horário livre: ${quandoSessao(prox)}` : 'Converse a sós com o seu coach'}</b></div><button class="bt bt-linha bt-sm" data-ir="sessao">${prox ? 'Ver horários' : 'Saiba mais'}</button></div>`;
 }
@@ -30,15 +35,14 @@ const conviteSessao = () => `<div class="convite-sessao">${IC_SESSAO}<span>Travo
 
 /* ----- Coachee: escolher o horário ----- */
 VIEWS.coachee.sessao = () => {
-  const livres = horariosLivres(); const p = pedidoAtivo();
+  const livres = horariosLivres(); const ps = pedidosAtivos();
   const dias = []; livres.forEach(x => { const d = dias.find(y => y.data === x.data); if (d) d.hs.push(x); else dias.push({ data: x.data, hs: [x] }); });
   const sel = livres.find(x => x.id === S.horario);
   const passos = [['1', 'Escolha um horário', `da agenda de ${esc(primeiroNome(nomeCoach()))}`], ['2', 'Conte o assunto', 'e vá para o pagamento'], ['3', 'Pronto', 'a sessão é confirmada após o pagamento']];
   return `
   <div class="topo"><div><div class="sobre">Sessão individual</div><h1>Converse a sós com ${esc(nomeCoach())}</h1>
     <div class="sub">${esc(C.cfg.duracaoSessao || 60)} minutos, online, para destravar um ponto específico da sua jornada · ${precoSessao()}</div></div></div>
-  ${p ? `<div class="card ouro sessao-minha"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><div class="pp-rot">Sua sessão · ${PEDIDO_ST[p.status] || esc(p.status)}</div><b style="font-size:18px">${esc(p.horario)}</b><small class="mu">"${esc(p.motivo)}"</small></div>
-    ${p.status === 'aguardando' && urlSegura(C.cfg.pagSessao) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(C.cfg.pagSessao))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : ''}</div>` : ''}
+  ${ps.length ? `<div class="minhas-sessoes">${ps.length > 1 ? `<div class="rotulinho" style="margin-bottom:8px">Suas sessões marcadas (${ps.length})</div>` : ''}${ps.map(cartaoMinhaSessao).join('')}</div>` : ''}
   <div class="sessao-passos">${passos.map(([n, t, s]) => `<div><span>${n}</span><b>${t}</b><small>${s}</small></div>`).join('')}</div>
   <div class="grade g-21" style="align-items:start">
     <div class="card"><h3>Horários disponíveis</h3>
