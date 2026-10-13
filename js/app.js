@@ -256,6 +256,40 @@ const svg = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const PAPEL = { coachee: 'Coachee · Plano Master', coach: 'Coach', admin: 'Administrador' };
 const nomePrograma = () => C.cfg.nome || 'Programa de Alta Performance';
 const botaoWhats = (cls = '') => C.cfg.whatsapp ? `<a class="bt bt-wa ${cls}" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">Falar no Grupo Mentoria</a>` : '';
+// Acesso discreto ao grupo no menu (o botão de destaque fica no cartão Grupo Mentoria, em Comunidade).
+const IC_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>';
+const linkGrupo = () => urlSegura(C.cfg.whatsapp) ? `<a class="nav-grupo" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">${IC_WA}Grupo Mentoria</a>` : '';
+
+// Celular: menu fixo embaixo com 4 telas principais e "Mais" (o resto, grupo, troca de perfil e sair).
+const CELULAR = '(max-width:860px)';
+const celular = () => window.matchMedia(CELULAR).matches;
+window.matchMedia(CELULAR).addEventListener('change', () => { if (S.pronto && S.u) render(); });
+const PRINCIPAIS = { coachee: ['painel', 'jornada', 'pratica', 'comunidade'], coach: ['painel', 'pessoas', 'encontros', 'ensino'], admin: ['painel', 'pessoas', 'planos', 'entradas'] };
+const CURTO = { 'Minha jornada': 'Jornada', 'Na prática': 'Prática', 'Minhas pessoas': 'Pessoas', 'Encontros em grupo': 'Encontros', 'O que eu ensino': 'Ensino', 'Como estamos': 'Visão geral', 'Novas entradas': 'Entradas' };
+const IC_MAIS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>';
+function navBaixo(papel, ativo, alertas) {
+  const prin = PRINCIPAIS[papel]; const nav = NAV[papel].filter(([k]) => prin.includes(k));
+  const noMais = !prin.includes(ativo);
+  return `<nav class="nav-baixo" aria-label="Menu principal">${nav.map(([k, l]) => `<button data-ir="${k}" ${ativo === k ? 'aria-current="page"' : ''}>${svg(k)}<span>${CURTO[l] || l}</span>${k === 'pratica' && alertas ? `<i class="cont num">${alertas}</i>` : ''}</button>`).join('')}
+    <button data-acao="menu-mais" ${noMais ? 'aria-current="page"' : ''} aria-haspopup="dialog">${IC_MAIS}<span>Mais</span></button></nav>`;
+}
+const NOME_MODO = { coachee: 'Coachee', coach: 'Coach', admin: 'Administrador' };
+// Quem tem dois perfis (coach e administrador) troca pelo menu do usuário.
+const botoesTroca = (cls = '') => modos(S.u).filter(m => m !== S.modo).map(m => `<button class="${cls}" data-acao="trocar-modo" data-modo="${m}">Trocar para ${NOME_MODO[m]}</button>`).join('');
+ACOES['menu-mais'] = () => {
+  const papel = S.modo || S.u.papel; const resto = NAV[papel].filter(([k]) => !PRINCIPAIS[papel].includes(k));
+  const m = $('#modal');
+  m.innerHTML = `<div class="modal-cab"><h2>Mais</h2><button type="button" class="x" data-fechar aria-label="Fechar">×</button></div>
+    <div class="modal-corpo menu-mais">
+      <div class="eu-mais">${av(S.u)}<div><b>${esc(S.u.nome)}</b><small>${PAPEL[papel]}</small></div></div>
+      ${resto.map(([k, l]) => `<button class="item-mais" data-acao="ir-mais" data-v="${k}">${svg(k)}${l}</button>`).join('')}
+      ${papel === 'coachee' ? linkGrupo() : ''}
+      ${botoesTroca('item-mais troca')}
+      <button class="item-mais" data-acao="sair">Sair</button>
+    </div>`;
+  m.querySelector('[data-fechar]').onclick = () => m.close(); m.showModal();
+};
+ACOES['ir-mais'] = t => { $('#modal').close(); ir(t.dataset.v); };
 
 function ir(view, p = null) {
   S.view = view; S.p = p; S.busca = ''; S.filtro = 'todos';
@@ -275,31 +309,25 @@ function render() {
   let conteudo;
   try { conteudo = VIEWS[papel][view](); } catch (e) { console.error(e); conteudo = `<div class="card"><b>Não foi possível abrir esta tela.</b><p class="mu">${esc(e.message)}</p></div>`; }
   const alertas = papel === 'coachee' ? C.D.acoes.filter(a => Regras.atrasada(a, hoje())).length : 0;
+  const cel = celular(); const vindoDoLogin = !r.querySelector('.app');
   r.innerHTML = `
   <div class="app">
     <aside class="lado">
       <div class="marca"><small>${esc(nomePrograma().split(' ').slice(0, -2).join(' ') || 'Programa de')}</small><b>${esc(nomePrograma().split(' ').slice(-2).join(' '))}</b></div>
-      <nav class="nav" aria-label="Menu principal">
+      ${cel ? '' : `<nav class="nav" aria-label="Menu principal">
         ${nav.map(([k, l]) => `<button data-ir="${k}" ${ativo === k ? 'aria-current="page"' : ''}>${svg(k)}${l}${k === 'pratica' && alertas ? `<span class="cont num">${alertas}</span>` : ''}</button>`).join('')}
-      </nav>
-      ${papel === 'coachee' && C.cfg.whatsapp ? `<div class="atalhos">${botaoWhats('bt-sm')}</div>` : ''}
-      <div class="eu">${av(S.u)}<div><b>${esc(S.u.nome)}</b><small>${PAPEL[papel]}</small></div><button data-acao="sair" title="Sair">Sair</button></div>
+      </nav>`}
+      ${papel === 'coachee' && !cel ? `<div class="atalhos">${linkGrupo()}</div>` : ''}
+      ${cel ? `<div class="troca-cel">${botoesTroca('chip-troca')}</div>` : `<div class="eu">${av(S.u)}<div><b>${esc(S.u.nome)}</b><small>${PAPEL[papel]}</small>${botoesTroca('troca-eu')}</div><button data-acao="sair" title="Sair">Sair</button></div>`}
     </aside>
     <main class="palco">
       ${Dados.demo ? faixaDemo() : ''}
-      ${faixaModo()}
       ${conteudo}
     </main>
+    ${cel ? navBaixo(papel, ativo, alertas) : ''}
   </div>`;
+  if (vindoDoLogin) window.scrollTo(0, 0);
   if (papel === 'coachee') posRenderCoachee();
-}
-
-// Quem tem dois perfis (ex.: coach e administrador) troca de perfil por esta faixa.
-function faixaModo() {
-  const ms = modos(S.u); if (ms.length < 2) return '';
-  const nome = { coachee: 'Coachee', coach: 'Coach', admin: 'Administrador' };
-  return `<div class="faixa-demo nao-imprimir"><span>Você está como <b class="ouro-tx">${nome[S.modo]}</b>.</span>
-    <div class="trocar">${ms.filter(m => m !== S.modo).map(m => `<button data-acao="trocar-modo" data-modo="${m}">Trocar para ${nome[m]}</button>`).join('')}</div></div>`;
 }
 
 function faixaDemo() {
@@ -386,6 +414,7 @@ async function iniciarSessao(u) {
 Object.assign(ACOES, {
   async sair() { $('#modal').open && $('#modal').close(); await Dados.sair(); },
   async 'trocar-modo'(t) {
+    if ($('#modal').open) $('#modal').close();
     S.modo = t.dataset.modo; gravarModo(S.u, S.modo); S.pronto = false; render();
     try { await carregar(); } catch (e) { falha(e); }
     S.view = 'painel'; S.p = null; S.pronto = true; render(); window.scrollTo(0, 0); pedirTermos();

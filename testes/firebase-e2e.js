@@ -93,7 +93,7 @@ async function definirSenha(email, senha) {
   await entrar('ana@teste.com', 'Ana12345!');
   ok(!!(await p.$('#aceite')), 'primeiro acesso pede o aceite dos termos');
   await p.check('#aceite', { force: true }); await salvarModal();
-  ok((await texto()).includes('Olá, Ana'), 'coachee vê o Hoje');
+  ok(/(Bom dia|Boa tarde|Boa noite), Ana/.test(await texto()), 'coachee vê o Hoje');
   await p.setInputFiles('[data-muda="foto"]', { name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkqGeoBwAEfQGAxk9RYgAAAABJRU5ErkJggg==', 'base64') });
   await espera(1200);
   ok(await p.evaluate(() => !!S.u.foto), 'foto de perfil salva');
@@ -122,7 +122,7 @@ async function definirSenha(email, senha) {
 
   console.log('\n== coach ==');
   await entrar('vinicius@teste.com', 'Vini1234!');
-  ok(await p.evaluate(() => S.modo === 'coach') && (await texto()).includes('Trocar para Administrador'), 'coach com acesso de administrador vê a troca de perfil');
+  ok(await p.evaluate(() => S.modo === 'coach') && (await p.textContent('[data-acao="trocar-modo"]')) === 'Trocar para Administrador', 'coach com acesso de administrador vê a troca de perfil');
   await p.click('[data-acao="trocar-modo"]'); await espera(1500);
   ok((await texto()).includes('Como estamos') && await p.evaluate(() => C.usuarios.length >= 4), 'coach troca para Administrador e vê Pessoas (regras aceitam)');
   await p.click('[data-acao="trocar-modo"]'); await espera(1500);

@@ -99,6 +99,10 @@ VIEWS.coach.pessoas = () => {
     <div class="busca"><input class="campo" id="busca" placeholder="Buscar por nome" value="${esc(S.busca)}" aria-label="Buscar coachee">${svg('busca')}</div>
     <select class="campo" data-muda="filtro" aria-label="Filtrar por situação">${[['todos', 'Todas as situações'], ['ok', 'Em dia'], ['atencao', 'Atenção'], ['parado', 'Parados'], ['renovar', 'Renovação'], ['novo', 'Novos']].map(([v, l]) => `<option value="${v}" ${S.filtro === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
   </div>
+  ${celular() ? `<div class="cartoes-pessoas">${lista.map(c => { const p = R.pct(C.L, c.D); return `<div class="cartao-pessoa">
+      <button class="cp-cab" data-ir="ficha" data-p="${c.u.id}">${av(c.u)}<span class="cp-nome"><b>${esc(c.u.nome)}</b><small>${c.prox ? `Trilha ${esc(c.prox.t.n)}` : 'Jornada concluída'} · ${c.u.ultimoAcesso ? quando(c.u.ultimoAcesso) : 'ainda não acessou'}</small></span>${chipSt(c.s.st)}</button>
+      <div class="cp-prog"><div class="barra"><b style="width:${p}%"></b></div><span class="num mu">${p}%</span></div>
+      <div class="cp-pe"><span class="cp-nota st-${c.s.st}">${c.s.st === 'ok' ? `Acesso até ${br(c.u.fim)}` : esc(c.s.nota)}</span><button class="link-discreto" data-acao="remover-coachee" data-id="${c.u.id}" aria-label="Remover ${esc(c.u.nome)}">Remover</button></div></div>`; }).join('') || '<div class="card vazio">Nenhum coachee com esse filtro.</div>'}</div>` : `
   <div class="card" style="padding-top:6px"><div class="tabela-wrap"><table>
     <thead><tr><th>Coachee</th><th>Acesso até</th><th>Trilha</th><th style="width:170px">Progresso</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead>
     <tbody>${lista.map(c => { const p = R.pct(C.L, c.D); return `<tr class="clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">
@@ -106,7 +110,7 @@ VIEWS.coach.pessoas = () => {
       <td class="num mu">${br(c.u.fim)}</td><td>${c.prox ? `Trilha ${esc(c.prox.t.n)}` : 'Concluída'}</td>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="barra" style="flex:1"><b style="width:${p}%"></b></div><span class="num mu" style="font-size:12px">${p}%</span></div></td>
       <td class="mu">${c.u.ultimoAcesso ? quando(c.u.ultimoAcesso) : 'ainda não acessou'}</td><td>${chipSt(c.s.st)}</td><td style="text-align:right"><button class="bt bt-fantasma bt-sm" data-acao="remover-coachee" data-id="${c.u.id}" aria-label="Remover ${esc(c.u.nome)}">Remover</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="vazio">Nenhum coachee com esse filtro.</td></tr>'}</tbody>
-  </table></div></div>`;
+  </table></div></div>`}`;
 };
 MUDA.filtro = t => { S.filtro = t.value; render(); };
 

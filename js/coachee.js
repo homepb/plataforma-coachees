@@ -81,7 +81,29 @@ async function marcarOuvida(msgId) {
 }
 
 /* ---------- mapa da jornada (RF-14) ---------- */
+// No celular, a jornada vira uma linha vertical: uma trilha abaixo da outra; a atual mostra o passo anterior, o atual e o próximo.
+function mapaVertical() {
+  const L = C.L, D = C.D; const a = R.proximo(L, D); const feitos = L.filter(i => R.feito(D, i.id)).length;
+  const trilhas = Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
+  const linhas = trilhas.map(t => {
+    const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length;
+    const st = R.statusTrilha(L, D, t.id); const aqui = a && a.t.id === t.id;
+    const estado = st === 'feito' ? `<span class="ok-tx">Concluída · ${f} de ${its.length}</span>` : aqui ? `<span class="ouro-tx">Você está aqui · ${f} de ${its.length}</span>` : `<span class="mu">${t.sequencial ? 'Passo a passo' : 'Aberta'} · ${f} de ${its.length}</span>`;
+    let detalhe = '';
+    if (aqui) {
+      const k = its.findIndex(i => i.id === a.id); const janela = its.slice(Math.max(0, k - 1), k + 2);
+      detalhe = `<div class="mv-passos">${janela.map(it => { const ok = R.feito(D, it.id); const at = it.id === a.id; const ab = R.acessivel(L, D, it);
+        return `<div class="mv-passo ${at ? 'atual' : ''}"><span class="mv-ic ${ok ? 'ok' : ''}">${ok ? '✓' : ab ? '' : LOCK}</span><span class="mv-tit">${it.k + 1} · ${esc(it.titulo)}</span>${at ? `<button class="bt bt-ouro bt-sm" data-ir="item" data-p="${it.id}">Continuar</button>` : ''}</div>`; }).join('')}</div>`;
+    }
+    return `<div class="mv-linha ${st === 'feito' ? 'feito' : aqui ? 'atual' : ''}"><div class="mv-trilho"><span class="mv-pt">${st === 'feito' ? '✓' : ''}</span></div>
+      <div class="mv-conteudo"><b>Trilha ${esc(t.n)} · ${esc(t.titulo)}</b>${estado}${detalhe}</div></div>`;
+  }).join('');
+  return `<div class="card mapa-v" style="margin-bottom:16px"><div class="mu" style="font-size:13.5px;margin-bottom:12px">${feitos} de ${L.length} concluídos · ${a ? `faltam ${L.length - feitos} para o certificado` : 'jornada completa'}</div>
+    ${linhas}<div class="mv-linha fim"><div class="mv-trilho"><span class="mv-pt">★</span></div><div class="mv-conteudo"><b>Certificado</b>${a ? '<span class="mu">Liberado ao concluir as quatro trilhas</span>' : '<button class="bt bt-ouro bt-sm" data-ir="certificado" style="margin-top:6px">Ver certificado</button>'}</div></div></div>`;
+}
+
 function mapa() {
+  if (celular()) return mapaVertical();
   const L = C.L, D = C.D; const a = R.proximo(L, D); const feitos = L.filter(i => R.feito(D, i.id)).length;
   const trilhas = Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
   return `<div class="card" style="margin-bottom:16px">
@@ -97,13 +119,14 @@ function mapa() {
   </div>`;
 }
 
+// Mensagem da semana compacta: botão de ouvir (quando há áudio), título e o texto.
 function mensagemSemana() {
   const m = C.mensagens[0];
-  if (!m) return `<div class="card"><h3>Mensagem da semana</h3><p class="mu" style="margin:0">A primeira mensagem de ${esc(nomeCoach())} chega em breve.</p></div>`;
+  if (!m) return `<div class="card msg-semana"><h3>Mensagem da semana</h3><p class="mu" style="margin:0">A primeira mensagem de ${esc(nomeCoach())} chega em breve.</p></div>`;
   const player = playerAudio(m);
-  return `<div class="card"><h3>Mensagem da semana de ${esc(nomeCoach())} <span class="mu acao num" style="font-size:12px;font-weight:500">para toda a turma · ${brc(m.data)}</span></h3>
-    ${player || '<p class="mu" style="margin:0;font-size:12.5px">Mensagem sem áudio.</p>'}
-    <b style="display:block;margin-top:10px">${esc(m.titulo)}</b><p class="mu" style="margin:4px 0 0;font-size:13px">${esc(m.texto)}</p></div>`;
+  return `<div class="card msg-semana"><div class="mu" style="font-size:12.5px">Mensagem da semana · ${esc(nomeCoach())} · ${brc(m.data)}${m.dur ? ` · ${esc(m.dur)}` : ''}</div>
+    <b style="display:block;font-size:16px;margin:4px 0">${esc(m.titulo)}</b>
+    ${m.texto ? `<p class="mu msg-texto" style="margin:0 0 ${player ? 10 : 0}px;font-size:13.5px">${esc(m.texto)}</p>` : ''}${player}</div>`;
 }
 
 function perguntaSemana() {
@@ -113,7 +136,7 @@ function perguntaSemana() {
   return `<div class="card"><h3>Pergunta da semana</h3>
     <div style="font-family:var(--f-display);font-size:22px;font-weight:600;line-height:1.2;margin-bottom:10px">${esc(q.texto)}</div>
     ${r ? `<div style="padding:10px 12px;background:var(--raised);border-radius:8px">"${esc(r.texto)}"</div><p class="mu" style="font-size:12.5px;margin:8px 0 0">Enviada a ${esc(nomeCoach())}. Só vocês dois leem.</p>${comentario('pergunta:' + q.id)}`
-      : `<form id="form-pergunta" data-id="${esc(q.id)}"><textarea class="campo" id="pergunta-resp" rows="3" placeholder="Escreva com calma. Só o seu coach lê." aria-label="Sua resposta"></textarea><button class="bt bt-ouro bt-sm" type="submit">Enviar ao meu coach</button></form>`}</div>`;
+      : `<form id="form-pergunta" data-id="${esc(q.id)}"><textarea class="campo" id="pergunta-resp" rows="3" placeholder="Escreva com calma. Só o seu coach lê." aria-label="Sua resposta"></textarea><button class="bt bt-linha bt-sm" type="submit">Enviar ao meu coach</button></form>`}</div>`;
 }
 
 /* ===================== Hoje ===================== */
@@ -121,39 +144,41 @@ VIEWS.coachee.painel = () => {
   const L = C.L, D = C.D, h = hoje(); const prox = R.proximo(L, D); const m = metaAtual();
   const pend = D.acoes.filter(a => !a.ok).slice(0, 6);
   const diarias = D.rotinas.filter(r => r.freq === 'diaria');
-  const seq = R.sequencia(L, D, S.u, h); const pp = R.proximaParada(P());
-  const enc = C.encontros.filter(e => e.data >= h).slice(0, 2);
+  const seq = R.sequencia(L, D, S.u, h);
+  const enc = C.encontros.find(e => e.data >= h);
+  const feitos = L.filter(i => R.feito(D, i.id)).length; const pc = L.length ? feitos / L.length : 0;
+  const hora = new Date().getHours(); const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+  // Anel de progresso da jornada (circunferência de 2πr com r = 50).
+  const anel = `<svg class="anel" viewBox="0 0 120 120" role="img" aria-label="${Math.round(pc * 100)}% da jornada concluída"><circle cx="60" cy="60" r="50" class="fundo"/><circle cx="60" cy="60" r="50" class="valor" style="stroke-dasharray:${(pc * 314.16).toFixed(1)} 314.16"/><text x="60" y="60" class="pct">${Math.round(pc * 100)}%</text><text x="60" y="80" class="sub">${feitos} de ${L.length}</text></svg>`;
   return `
-  <div class="topo"><div style="display:flex;gap:18px;align-items:center"><label class="foto-perfil" title="${S.u.foto ? 'Trocar a foto' : 'Adicionar sua foto'}">${av(S.u)}<input type="file" accept="image/*" data-muda="foto" hidden><span class="cam">${S.u.foto ? 'trocar' : '+ foto'}</span></label>
-    <div><div class="sobre">Hoje · ${hojeExtenso()}</div><h1>Olá, ${esc(primeiroNome(S.u.nome))}</h1><div class="sub">${prox ? `Trilha ${esc(prox.t.n)} · ${esc(prox.t.titulo)}` : 'Jornada completa'}</div></div></div>
-    ${botaoWhats()}</div>
+  <div class="topo"><div style="display:flex;gap:16px;align-items:center"><label class="foto-perfil" title="${S.u.foto ? 'Trocar a foto' : 'Adicionar sua foto'}">${av(S.u)}<input type="file" accept="image/*" data-muda="foto" hidden><span class="cam">${S.u.foto ? 'trocar' : '+ foto'}</span></label>
+    <div><div class="sobre">${hojeExtenso()}</div><h1>${saudacao}, ${esc(primeiroNome(S.u.nome))}</h1></div></div>
+    <button class="link-discreto ritmo" data-ir="evolucao"><span class="chama num">${seq}</span>${plural(seq, 'semana seguida', 'semanas seguidas')} em movimento</button></div>
 
-  ${m ? `<div class="card meta-card" style="margin-bottom:16px">
-    <div class="rotulinho ouro-tx">Minha meta para 2027</div><div class="meta-txt">${esc(m.meta)}</div>
-    <div class="meta-pq"><span><b>Por que importa:</b> ${esc(m.porque)}</span><span><b>Como vou saber:</b> ${esc(m.indicador)}</span></div>
-    ${botaoMeta('Rever minha meta', 'bt bt-fantasma bt-sm', 'margin-top:12px')}</div>`
-  : `<div class="card ouro" style="margin-bottom:16px"><div class="rotulinho ouro-tx">Minha meta para 2027</div><p style="margin:6px 0 12px">Sua meta ainda não está escrita. Ela é o centro de toda a sua jornada.</p>${botaoMeta('Escrever minha meta', 'bt bt-ouro')}</div>`}
-  <div class="grade g2" style="margin-bottom:16px">${mensagemSemana()}${perguntaSemana()}</div>
-  ${mapa()}
-  ${prox ? `<div class="card ouro" style="margin-bottom:16px"><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-      <div style="flex:1;min-width:220px"><div class="rotulinho ouro-tx">Continue de onde parou</div>
-        <div style="font-family:var(--f-display);font-size:26px;font-weight:600;margin:4px 0">${esc(prox.titulo)}</div>
-        <div class="mu">Trilha ${esc(prox.t.n)} · ${esc(prox.t.titulo)} · ${prox.tipo === 'aula' ? `aula · ${prox.dur || 15} min` : `passo ${prox.k + 1} de ${prox.total}`}</div></div>
-      <button class="bt bt-ouro" data-ir="item" data-p="${prox.id}">${prox.tipo === 'aula' ? 'Assistir agora' : 'Continuar'}</button></div></div>` : ''}
-  <div class="card" style="margin-bottom:16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-    <div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Você está em movimento</div><div style="font-weight:700;font-size:16px;margin-top:4px;display:flex;align-items:center"><span class="chama num">${seq}</span>${plural(seq, 'semana seguida', 'semanas seguidas')} em movimento</div>${notaSemana(seq, h)}
-      <div class="mu" style="font-size:12.5px;margin-top:4px">${plural(L.filter(i => R.feito(D, i.id)).length, 'passo ou aula', 'passos e aulas')} e ${plural(D.acoes.filter(a => a.ok).length, 'ação feita', 'ações feitas')} desde ${brc(S.u.inicio)}.${pp ? ` Próxima parada para olhar para trás: ${brc(pp.data)}.` : ''}</div></div>
-    <button class="bt bt-linha" data-ir="evolucao">Ver minha evolução</button></div>
-  <div class="grade g2">
-    <div class="card"><h3>Próximos encontros <button class="bt bt-fantasma bt-sm acao" data-ir="comunidade">Ver todos</button></h3>
-      <div class="lista">${enc.length ? enc.map(e => `<div class="item">${caixaData(e.data)}<div class="tx"><b>${e.tipo === 'convidado' ? 'Aula com convidado' : 'Mentoria em grupo'}</b><small>${esc(e.titulo)} · ${esc(e.hora || '')}</small></div>${urlSegura(e.link) ? `<a class="bt bt-linha bt-sm" href="${esc(e.link)}" target="_blank" rel="noopener">Entrar na sala</a>` : '<span class="chip ouro">ao vivo</span>'}</div>`).join('') : '<div class="vazio">Nenhum encontro agendado.</div>'}</div></div>
-    <div class="card"><h3>Para fazer <button class="bt bt-fantasma bt-sm acao" data-ir="pratica">Na prática</button></h3>
+  ${prox ? `<section class="card proximo-passo">
+    <div class="pp-texto"><div class="pp-rot">Seu próximo passo</div>
+      <h2>${esc(prox.titulo)}</h2>
+      <div class="pp-sub">Trilha ${esc(prox.t.n)} · ${esc(prox.t.titulo)} · ${prox.tipo === 'aula' ? `aula · ${prox.dur || 15} min` : `passo ${prox.k + 1} de ${prox.total}`}</div>
+      <div class="pp-botoes"><button class="bt bt-ouro" data-ir="item" data-p="${prox.id}">${prox.tipo === 'aula' ? 'Assistir agora' : 'Continuar'}</button><button class="bt bt-linha" data-ir="jornada">Ver a jornada</button></div></div>
+    <div class="pp-anel">${anel}<small>faltam ${L.length - feitos} para o certificado</small></div></section>`
+  : `<section class="card proximo-passo"><div class="pp-texto"><div class="pp-rot">Jornada completa</div><h2>Parabéns! Você concluiu as quatro trilhas.</h2>
+      <div class="pp-botoes"><button class="bt bt-ouro" data-ir="certificado">Ver meu certificado</button></div></div><div class="pp-anel">${anel}</div></section>`}
+
+  ${m ? `<div class="meta-faixa"><span class="mf-rot">Sua meta para 2027</span><span class="mf-txt">${esc(m.meta)}</span>${botaoMeta('Rever', 'link-discreto mf-link')}</div>`
+  : `<div class="meta-faixa vazia"><span class="mf-rot">Sua meta para 2027</span><span class="mf-txt-sm">Ainda não está escrita. Ela é o centro de toda a sua jornada.</span>${botaoMeta('Escrever minha meta', 'bt bt-linha bt-sm')}</div>`}
+
+  <div class="grade g2" style="margin-bottom:16px;align-items:start">
+    <div class="card"><h3>Para fazer esta semana <button class="link-discreto acao" data-ir="pratica">Na prática</button></h3>
       <div class="lista">
         ${pend.map(a => `<div class="item"><input type="checkbox" class="ck" data-muda="acao" data-id="${a.id}" aria-label="Concluir: ${esc(a.oque)}"><div class="tx"><b>${esc(a.oque)}</b><small>${esc(a.quem)} · até ${brc(a.prazo)}</small></div>${R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : ''}</div>`).join('')}
         ${diarias.map(r => { const ok = (r.marcas || []).includes(h); return `<div class="item"><input type="checkbox" class="ck" data-muda="rotina" data-id="${r.id}" data-dia="${h}" ${ok ? 'checked' : ''} aria-label="Rotina: ${esc(r.titulo)}"><div class="tx"><b class="${ok ? 'feita' : ''}">${esc(r.titulo)}</b><small>Rotina diária</small></div></div>`; }).join('')}
         ${!pend.length && !diarias.length ? '<div class="vazio">Nada pendente. Cadastre ações e rotinas em Na prática.</div>' : ''}
       </div></div>
-  </div>`;
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">${mensagemSemana()}${perguntaSemana()}</div>
+  </div>
+
+  ${enc ? `<div class="card encontro-faixa">${caixaData(enc.data)}<div class="tx"><small class="mu">Próximo encontro · ${enc.tipo === 'convidado' ? 'aula com convidado' : 'mentoria em grupo'} · ${esc(enc.hora || '')}</small><b>${esc(enc.titulo)}</b></div>
+    <button class="link-discreto" data-ir="comunidade">Ver todos</button>${urlSegura(enc.link) ? `<a class="bt bt-linha bt-sm" href="${esc(enc.link)}" target="_blank" rel="noopener">Entrar na sala</a>` : ''}</div>` : ''}`;
 };
 
 /* ===================== Minha jornada ===================== */

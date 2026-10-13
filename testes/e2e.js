@@ -31,7 +31,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     // ---------- login ----------
     ok(await p.$('#form-login'), 'tela de login aparece');
     await p.click('[data-email="ana@demo.com"]'); await p.click('#form-login button[type=submit]'); await p.waitForTimeout(600);
-    ok((await texto()).includes('Olá, Ana'), 'coachee entra e vê o Hoje');
+    ok(/(Bom dia|Boa tarde|Boa noite), Ana/.test(await texto()), 'coachee entra e vê o Hoje');
+    ok(await p.$('.proximo-passo [data-ir="item"]') && await p.$eval('.proximo-passo', e => e.getBoundingClientRect().top < window.innerHeight), 'próximo passo no topo do Hoje, visível sem rolar');
+    ok(await p.$$eval('.palco .bt-ouro', b => b.length) === 1, 'Hoje com um só botão principal');
+    if (nome === 'celular') ok(await p.$('.nav-baixo [data-acao="menu-mais"]') && await p.$eval('.nav-baixo', e => getComputedStyle(e).position === 'fixed'), 'celular: menu fixo embaixo com Mais');
     await foto('coachee-hoje');
     // Meta escrita pelo "Hoje" sem liberar a Trilha II (progresso restaurado depois).
     const progAntes = await p.evaluate(() => JSON.stringify(C.D.progresso));
@@ -57,8 +60,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       if (nome === 'celular') ok(!(await transborda()), `coachee: ${v} sem rolagem lateral`);
     }
     await ir('jornada'); await foto('coachee-jornada');
-    const avatar = await p.evaluate(() => { const w = document.querySelector('.mapa-wrap').getBoundingClientRect(); const a = document.querySelector('.eu-mapa').getBoundingClientRect(); return a.top >= w.top; });
-    ok(avatar, 'avatar do mapa inteiro dentro da faixa (sem corte)');
+    if (nome === 'computador') {
+      const avatar = await p.evaluate(() => { const w = document.querySelector('.mapa-wrap').getBoundingClientRect(); const a = document.querySelector('.eu-mapa').getBoundingClientRect(); return a.top >= w.top; });
+      ok(avatar, 'avatar do mapa inteiro dentro da faixa (sem corte)');
+    } else ok(await p.$('.mapa-v .mv-passo.atual [data-ir="item"]'), 'celular: jornada vertical com o passo atual e Continuar');
     await ir('item', 'e5'); ok((await texto()).includes('não está liberado'), 'passo 5 bloqueado antes do passo 4');
     await ir('item', 'e4');
     await p.fill('#ps-0', 'Coordeno 1 loja.'); await p.fill('#ps-1', '4'); await p.fill('#ps-2', 'Bons resultados.');
@@ -114,7 +119,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await ir('pessoas'); await p.click('[data-acao="novo-coachee"]'); await p.fill('#nc-nome', 'Marcos Novo'); await p.fill('#nc-email', 'marcos@demo.com'); await modalSalvar();
     ok((await confirmacao()).includes('cadastrado(a) com sucesso'), 'janela fecha e aviso de sucesso aparece no topo (coach)');
     ok((await texto()).includes('Marcos Novo') && await p.evaluate(() => daCarteira(C.carteira.find(c => c.u.email === 'marcos@demo.com').u.id).u.coachId === 'vinicius'), 'coach cadastra coachee na própria carteira');
-    ok((await texto()).includes('Trocar para Administrador'), 'coach com acesso de administrador vê a troca de perfil');
+    ok(await p.$eval('[data-acao="trocar-modo"]', b => b.textContent === 'Trocar para Administrador' && b.offsetParent !== null), 'coach com acesso de administrador vê a troca de perfil (menu do usuário)');
     await p.click('[data-acao="trocar-modo"]'); await p.waitForTimeout(400);
     ok((await texto()).includes('Como estamos'), 'coach troca para Administrador');
     await p.click('[data-acao="trocar-modo"]'); await p.waitForTimeout(400);
