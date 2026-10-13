@@ -118,10 +118,10 @@ const porId = (lista) => Object.fromEntries(lista.map(x => [x.id, x]));
 const recente = (a, b) => (b.data || '').localeCompare(a.data || '');
 
 async function carregarConteudo() {
-  const [cfg, trilhas, itens, mensagens, perguntas, encontros, materiais, fornecedores] = await Promise.all([
-    col('config').obter('programa'), col('trilhas').listar(), col('itens').listar(), col('mensagens').listar(),
+  const [cfg, cert, trilhas, itens, mensagens, perguntas, encontros, materiais, fornecedores] = await Promise.all([
+    col('config').obter('programa'), col('config').obter('certificado'), col('trilhas').listar(), col('itens').listar(), col('mensagens').listar(),
     col('perguntas').listar(), col('encontros').listar(), col('materiais').listar(), col('fornecedores').listar()]);
-  C.cfg = cfg || {};
+  C.cfg = cfg || {}; C.cert = cert || {};
   C.trilhas = porId(trilhas); C.itens = porId(itens);
   C.L = Regras.lista(C.trilhas, C.itens);
   C.mensagens = mensagens.sort(recente); C.perguntas = perguntas.sort(recente);
@@ -181,7 +181,7 @@ const daCarteira = id => (C.carteira || []).find(c => c.u.id === id);
 /* ===================== Navegação e casca ===================== */
 const NAV = {
   coachee: [['painel', 'Hoje'], ['jornada', 'Minha jornada'], ['quem', 'Quem eu sou'], ['evolucao', 'Minha evolução'], ['pratica', 'Na prática'], ['comunidade', 'Comunidade']],
-  coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino']],
+  coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino'], ['certificado', 'Certificado']],
   admin: [['painel', 'Como estamos'], ['pessoas', 'Pessoas'], ['planos', 'Planos'], ['entradas', 'Novas entradas'], ['ajustes', 'Ajustes']]
 };
 const ATIVO = { coachee: { item: 'jornada', questionario: 'quem', certificado: 'jornada' }, coach: { ficha: 'pessoas' }, admin: {} };
@@ -198,6 +198,7 @@ const IC = {
   entradas: '<path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/>',
   ajustes: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>',
   evolucao: '<path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7M10 17h4v3h-4z"/>',
+  certificado: '<circle cx="12" cy="9" r="5"/><path d="M9 13.5 7.5 21l4.5-2.5 4.5 2.5-1.5-7.5"/>',
   busca: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'
 };
 const svg = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;

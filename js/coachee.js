@@ -337,20 +337,6 @@ MUDA.foto = async t => {
   toast('Foto atualizada. Ela aparece no mapa da sua jornada.'); render();
 };
 
-/* ===================== Certificado (RF-26) ===================== */
-VIEWS.coachee.certificado = () => {
-  if (R.proximo(C.L, C.D)) return `<div class="card"><p>O certificado é liberado ao concluir as quatro trilhas.</p><button class="bt bt-linha" data-ir="jornada">Voltar</button></div>`;
-  const fim = Object.values(C.D.progresso).filter(p => p.ok && p.data).map(p => p.data).sort().pop() || hoje();
-  return `<div class="topo"><div><div class="sobre">Jornada concluída</div><h1>Certificado</h1></div><div style="display:flex;gap:8px"><button class="bt bt-ouro" onclick="window.print()">Salvar em PDF</button><button class="bt bt-fantasma" data-ir="jornada">← Minha jornada</button></div></div>
-  <div class="certificado">${av(S.u)}
-    <div class="selo" style="justify-content:center;color:#8E6B2E"><i style="background:#8E6B2E"></i>${esc(nomePrograma())}<i style="background:#8E6B2E"></i></div>
-    <h2>Certificado de conclusão</h2><p>Certificamos que</p><div class="nome">${esc(S.u.nome)}</div>
-    <p>concluiu as quatro trilhas da jornada de desenvolvimento de carreira: Autoconhecimento, Planejamento estratégico, Desenvolvimento de competências comportamentais e Liderança.</p>
-    <p class="num">${br(S.u.inicio)} a ${br(fim)}</p>
-    <p style="margin-top:30px;font-family:var(--f-display);font-size:22px;font-style:italic">${esc(nomeCoach())}</p><p style="margin-top:-8px;font-size:12px;letter-spacing:.14em;text-transform:uppercase">Coach responsável</p>
-  </div>`;
-};
-
 /* ===================== Quem eu sou (RF-24, RF-28) ===================== */
 function cartaoAssess(k, D, paraCoach, Pp) {
   const A = CONTEUDO.ASSESS[k]; const hs = R.historico(D, k); const u = hs[hs.length - 1]; const ant = hs[hs.length - 2];
@@ -367,14 +353,16 @@ function cartaoAssess(k, D, paraCoach, Pp) {
     const linkNbm = rot => disc ? `<a class="bt bt-linha bt-sm" href="${esc(disc)}" target="_blank" rel="noopener">${rot}</a>` : '';
     if (!u) acao = k === 'disc' ? `${linkNbm('Fazer o teste no NBM')} <button class="bt bt-ouro bt-sm" data-acao="registrar-disc">Registrar resultado</button>` : `<button class="bt bt-ouro bt-sm" data-ir="questionario" data-p="${k}">Responder agora · ${CONTEUDO.QUEST[k].minutos} min</button>`;
     else if (lib) acao = k === 'disc' ? `${linkNbm('Refazer no NBM')} <button class="bt bt-ouro bt-sm" data-acao="registrar-disc">Registrar novo resultado</button>` : `<button class="bt bt-ouro bt-sm" data-ir="questionario" data-p="${k}">Refazer agora</button>`;
-    else acao = `<button class="bt bt-fantasma bt-sm" disabled>${pp ? `Refazer na parada ${pp.n} · abre ${brc(pp.abre)}` : 'Ciclo de reavaliações concluído'}</button>`;
+    // Bloqueado até a próxima parada: o botão aparece desabilitado, com a data em que libera ao lado.
+    else acao = pp ? `<button class="bt bt-linha bt-sm" disabled aria-describedby="libera-${k}">${LOCK} Refazer</button><span class="mu" id="libera-${k}" style="font-size:12.5px">Refazer na parada ${pp.n} · abre ${brc(pp.abre)}</span>`
+      : '<span class="mu" style="font-size:12.5px">Ciclo de reavaliações concluído</span>';
   }
   const chip = !u ? '<span class="chip warn acao">pendente</span>' : lib ? '<span class="chip ouro acao">liberado para refazer</span>' : `<span class="chip ok acao">feito em ${brc(u.data)}</span>`;
   return `<div class="card ${lib && !paraCoach ? 'ouro' : ''}"><h3>${esc(A.nome)} ${chip}</h3>
     ${u ? `${titulo}${ant ? `<div class="comp-leg" style="margin:6px 0 8px"><span><i class="antes"></i>${br(ant.data)}</span><span><i class="depois"></i>${br(u.data)}</span></div>` : ''}<div class="disc" style="margin-top:8px">${linhas}</div>` : `<p class="mu" style="margin:0 0 10px">${esc(A.desc)}</p>`}
     ${ord && !paraCoach ? `<div class="sep"></div><div class="rotulinho" style="margin-bottom:4px">Leitura guiada</div><p style="margin:0 0 4px;font-size:13px">${esc(DISC[ord[0][0]][1])} ${esc(DISC[ord[0][0]][2])}</p>` : ''}
     <div class="sep"></div><small class="mu num">${hs.length ? `Feito em ${hs.map(x => brc(x.data)).join(' · ')}` : 'Ainda não feito'}</small>
-    ${acao ? `<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">${acao}</div>` : ''}</div>`;
+    ${acao ? `<div style="margin-top:10px;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center">${acao}</div>` : ''}</div>`;
 }
 
 VIEWS.coachee.quem = () => {

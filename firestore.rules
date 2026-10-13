@@ -50,6 +50,8 @@ service cloud.firestore {
     match /materiais/{id} { allow read: if logado(); allow write: if equipe(); }
     match /fornecedores/{id} { allow read: if logado(); allow write: if equipe(); }
     match /config/{id} { allow read: if logado(); allow write: if admin(); }
+    // O modelo do certificado é configurado pelos coaches.
+    match /config/certificado { allow write: if equipe(); }
 
     // Dados do coachee (RN-10): ele mesmo e o coach responsável.
     match /progresso/{id} {

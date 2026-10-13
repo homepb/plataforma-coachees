@@ -154,6 +154,14 @@ test('áudio da mensagem: equipe grava, todos os logados ouvem', async () => {
   await assertFails(env.unauthenticatedContext().firestore().doc('audios/m1_0').get());
 });
 
+test('modelo do certificado: a equipe configura, o coachee só lê', async () => {
+  await assertSucceeds(db('vini').doc('config/certificado').set({ titulo: 'Certificado de Conclusão', assinaturas: { vini: '' } }, { merge: true }));
+  await assertSucceeds(db('ana').doc('config/certificado').get());
+  await assertFails(db('ana').doc('config/certificado').set({ titulo: 'x' }));
+  await assertSucceeds(db('mari').doc('config/certificado').get());
+  await assertFails(db('mari').doc('config/programa').set({ nome: 'x' }));
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));

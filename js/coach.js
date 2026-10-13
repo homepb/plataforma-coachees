@@ -225,7 +225,7 @@ VIEWS.coach.ficha = () => {
   }
   return `
   <div class="topo"><div style="display:flex;gap:14px;align-items:center">${av(u, '', 'width:52px;height:52px;font-size:16px;')}<div><div class="sobre">${esc(u.cargo || 'Coachee')}</div><h1>${esc(u.nome)}</h1></div></div>
-    <div style="display:flex;gap:8px;align-items:center">${chipSt(s.st)}<button class="bt bt-fantasma" data-ir="pessoas">← Minhas pessoas</button></div></div>
+    <div style="display:flex;gap:8px;align-items:center">${chipSt(s.st)}${!prox ? `<button class="bt bt-linha" data-ir="certificado" data-p="${u.id}">Certificado</button>` : ''}<button class="bt bt-fantasma" data-ir="pessoas">← Minhas pessoas</button></div></div>
   <div class="abas" role="tablist">${abas.map(([k, l]) => `<button role="tab" data-aba="${k}" aria-selected="${S.aba === k}">${l}</button>`).join('')}</div>
   ${corpo}`;
 };
