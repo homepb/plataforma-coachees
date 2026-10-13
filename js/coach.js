@@ -276,7 +276,7 @@ VIEWS.coach.encontros = () => {
 };
 Object.assign(ACOES, {
   encontro(t) {
-    const e = C.encontros.find(x => x.id === t.dataset.id) || { tipo: 'mentoria', hora: '19:00', link: C.cfg.sala || '', data: '' };
+    const e = C.encontros.find(x => x.id === t.dataset.id) || { tipo: 'mentoria', hora: '19:00', link: doCoach('sala') || '', data: '' };
     abrirModal(e.id ? 'Editar encontro' : 'Agendar mentoria', `<label class="rotulo" for="en-tipo">Tipo</label><select class="campo" id="en-tipo"><option value="mentoria" ${e.tipo === 'mentoria' ? 'selected' : ''}>Mentoria em grupo</option><option value="convidado" ${e.tipo === 'convidado' ? 'selected' : ''}>Aula com convidado</option></select>
       <label class="rotulo" for="en-tit">Tema</label><input class="campo" id="en-tit" value="${esc(e.titulo || '')}" placeholder="Ex.: Reuniões que geram decisão">
       <div class="duas"><div><label class="rotulo" for="en-d">Data</label><input class="campo" id="en-d" type="date" value="${esc(e.data)}"></div><div><label class="rotulo" for="en-h">Horário</label><input class="campo" id="en-h" type="time" value="${esc(e.hora)}"></div></div>
@@ -516,4 +516,46 @@ ACOES['anexar-pdf-assess'] = t => {
     const id = await col('relatorios').adicionar(doc); c.D.relatorios = [{ id, ...doc }, ...(c.D.relatorios || [])];
     toast(`PDF enviado. ${primeiroNome(c.u.nome)} já pode abrir em Quem eu sou.`); render();
   });
+};
+
+/* ===================== Meus ajustes (perfil e ajustes de cada coach) ===================== */
+// Cada coach define o que vale para os coachees dele. Campo vazio = padrão do programa (definido pelo administrador).
+VIEWS.coach.meus = () => {
+  const m = C.perfilCoach || {}; const pad = k => C.cfg[k] ? `Padrão do programa: ${esc(C.cfg[k])}` : 'Sem padrão definido';
+  const campo = (id, k, rot, ph, tipo = 'text') => `<label class="rotulo" for="${id}">${rot}</label><input class="campo" id="${id}" type="${tipo}" value="${esc(m[k] || '')}" placeholder="${ph}"><p class="mu ajuda">${pad(k)}</p>`;
+  return `<div class="topo"><div><div class="sobre">Perfil de coach</div><h1>Meus ajustes</h1><div class="sub">O que você preencher aqui vale para os seus coachees. Campo em branco usa o padrão do programa.</div></div></div>
+  <form id="form-meus" class="grade g2" style="align-items:start">
+    <div class="card"><h3>Meu perfil</h3>
+      <div class="meu-foto">${m.foto ? `<img src="${esc(urlSegura(m.foto))}" alt="Sua foto">` : av(S.u, '', 'width:64px;height:64px;font-size:20px')}<label class="bt bt-linha bt-sm" for="mc-foto">${m.foto ? 'Trocar foto' : 'Enviar foto'}</label><input type="file" id="mc-foto" accept="image/*" data-muda="foto-coach" hidden></div>
+      <label class="rotulo" for="mc-nome">Nome que os coachees veem</label><input class="campo" id="mc-nome" value="${esc(m.nome || '')}" placeholder="${esc(S.u.nome)}">
+      <label class="rotulo" for="mc-apres">Apresentação curta</label><textarea class="campo" id="mc-apres" rows="4" placeholder="Ex.: Coach de carreira há 12 anos, ex-diretor comercial. Ajudo líderes a transformar meta em rotina.">${esc(m.apresentacao || '')}</textarea>
+      <p class="mu ajuda">Aparece para os seus coachees na tela da Sessão 1:1.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="card"><h3>Para os meus coachees</h3>
+        ${campo('mc-wa', 'whatsapp', 'Link do Grupo Mentoria (WhatsApp)', 'https://chat.whatsapp.com/…')}
+        ${campo('mc-sala', 'sala', 'Sala padrão da mentoria em grupo', 'https://meet.google.com/…')}
+        ${campo('mc-disc', 'disc', 'Link do teste DISC (NBM)', 'https://…')}
+      </div>
+      <div class="card"><h3>Sessão individual (1:1)</h3>
+        <div class="duas"><div>${campo('mc-preco', 'precoSessao', 'Preço (R$)', 'Ex.: 450')}</div><div>${campo('mc-dur', 'duracaoSessao', 'Duração (min)', '60', 'number')}</div></div>
+        ${campo('mc-pag', 'pagSessao', 'Link de pagamento da sessão', 'https://…')}
+      </div>
+      <div style="display:flex;justify-content:flex-end"><button class="bt bt-ouro" type="submit">Salvar meus ajustes</button></div>
+    </div>
+  </form>`;
+};
+MUDA['foto-coach'] = async t => {
+  const f = t.files && t.files[0]; if (!f) return;
+  const foto = await Dados.enviarArquivo(f, 'coaches', C.cfg.cloudinary);
+  await col('coaches').salvar(S.u.id, { foto }); C.perfilCoach = { ...(C.perfilCoach || {}), foto };
+  toast('Foto atualizada.'); render();
+};
+FORMS['form-meus'] = async () => {
+  const d = { nome: valor('mc-nome'), apresentacao: valor('mc-apres'), whatsapp: valor('mc-wa'), sala: valor('mc-sala'), disc: valor('mc-disc'),
+    precoSessao: valor('mc-preco'), duracaoSessao: valor('mc-dur') ? +valor('mc-dur') : '', pagSessao: valor('mc-pag') };
+  for (const k of ['whatsapp', 'sala', 'disc', 'pagSessao']) if (d[k] && !/^https:\/\//.test(d[k])) { toast('Os links precisam começar com https://'); return; }
+  if (d.duracaoSessao !== '' && (d.duracaoSessao < 15 || d.duracaoSessao > 240)) { toast('Use uma duração entre 15 e 240 minutos.'); return; }
+  await col('coaches').salvar(S.u.id, { ...d, atualizadoEm: hoje() }); C.perfilCoach = { ...(C.perfilCoach || {}), ...d };
+  toast('Ajustes salvos. Já valem para os seus coachees.'); render();
 };

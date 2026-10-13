@@ -150,7 +150,10 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     ok(await p.evaluate(() => daCarteira('ana').D.comentarios.a31.texto === 'Ótimo começo, Ana.'), 'coach comenta a resposta');
     await ir('ficha', 'ana'); await p.click('[data-aba="assess"]'); await p.waitForTimeout(150);
     await p.click('[data-acao="anexar-pdf-assess"][data-k="ie"]'); await p.setInputFiles('#pa-arq', { name: 'ie-ana.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 teste') }); await modalSalvar(); await p.waitForTimeout(200);
-    ok(await p.evaluate(() => daCarteira('ana').D.relatorios[0].tipo === 'ie') && !!(await p.$('.pdf-assess [data-acao="abrir-arquivo"], .pdf-assess a')), 'coach anexa o PDF da inteligência emocional na ficha');
+    ok(await p.evaluate(() => daCarteira('ana').D.relatorios[0].tipo === 'ie') && !!(await p.$('.pdf-card .bt-ouro')), 'coach anexa o PDF da inteligência emocional na ficha');
+    await ir('meus'); await p.fill('#mc-wa', 'https://chat.whatsapp.com/grupoVinicius'); await p.fill('#mc-preco', '450'); await p.fill('#mc-apres', 'Coach de carreira há 12 anos.');
+    await p.click('#form-meus button[type=submit]'); await p.waitForTimeout(250);
+    ok(await p.evaluate(() => Dados.col('coaches').obter('vinicius').then(c => c.whatsapp === 'https://chat.whatsapp.com/grupoVinicius' && c.precoSessao === '450')), 'coach salva os próprios ajustes (grupo e preço da sessão)');
     await ir('agenda'); ok((await texto()).includes('reservado') && (await texto()).includes('Preparar a conversa com a diretoria'), 'coach vê na agenda o horário reservado e o assunto');
     const antes = await p.evaluate(() => C.horarios.length);
     await p.fill('#hr-h', '9h, 15:30'); await p.selectOption('#hr-r', '2'); await p.click('#form-horario button[type=submit]'); await p.waitForTimeout(300);
@@ -179,6 +182,9 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await entrar('ana@demo.com'); await p.waitForTimeout(300);
     if (await p.$('.celebra')) await p.click('.celebra [data-fechar]');
     ok((await texto()).includes('Uma conversa difícil por semana'), 'coachee vê a nova mensagem da semana');
+    await ir('comunidade'); ok(!!(await p.$('#grupo-mentoria a[href="https://chat.whatsapp.com/grupoVinicius"]')), 'coachee usa o grupo definido pelo próprio coach');
+    await ir('sessao'); ok((await texto()).includes('R$ 450') && (await texto()).includes('Coach de carreira há 12 anos.'), 'Sessão 1:1 mostra o preço e a apresentação do coach');
+    await ir('quem'); ok(!!(await p.$('.pdf-card .bt-ouro')) && (await texto()).includes('Resultado da inteligência emocional'), 'coachee vê o cartão do PDF com o botão Abrir PDF');
     await ir('item', 'a31'); ok((await texto()).includes('Ótimo começo, Ana.'), 'coachee vê o comentário do coach');
 
     // ---------- administrador ----------

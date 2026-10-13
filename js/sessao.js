@@ -9,7 +9,7 @@ const quandoSessao = x => `${diaSemana(x.data)}, ${brc(x.data)} às ${x.hora}`;
 const ordemHorario = (a, b) => (a.data + a.hora).localeCompare(b.data + b.hora);
 const IC_SESSAO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2"/></svg>';
 const PEDIDO_ST = { aguardando: 'aguardando pagamento', pago: 'pago, aguardando o horário', agendado: 'confirmada', cancelado: 'cancelado' };
-const precoSessao = () => C.cfg.precoSessao ? `R$ ${esc(C.cfg.precoSessao)}` : 'valor informado no pagamento';
+const precoSessao = () => doCoach('precoSessao') ? `R$ ${esc(doCoach('precoSessao'))}` : 'valor informado no pagamento';
 
 // Horários livres do coach a partir de agora (hoje, só os que ainda não passaram).
 function horariosLivres() {
@@ -21,14 +21,14 @@ function horariosLivres() {
 const pedidosAtivos = () => (C.pedidos || []).filter(p => p.status === 'aguardando' || p.status === 'pago' || (p.status === 'agendado' && (!p.quando || p.quando >= hoje())))
   .sort((a, b) => ((a.quando || '9999') + (a.hora || '')).localeCompare((b.quando || '9999') + (b.hora || '')));
 const cartaoMinhaSessao = p => `<div class="card ouro sessao-minha"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><div class="pp-rot">Sua sessão · ${PEDIDO_ST[p.status] || esc(p.status)}</div><b style="font-size:18px">${esc(p.horario)}</b><small class="mu">"${esc(p.motivo)}"</small></div>
-    ${p.status === 'aguardando' && urlSegura(C.cfg.pagSessao) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(C.cfg.pagSessao))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : ''}</div>`;
+    ${p.status === 'aguardando' && urlSegura(doCoach('pagSessao')) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(doCoach('pagSessao')))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : ''}</div>`;
 
 // Cartão do Hoje: a sessão marcada ou um convite com o próximo horário livre.
 function cartaoSessaoHoje() {
   const ps = pedidosAtivos(); const p = ps[0];
   if (p) return `<div class="card sessao-faixa"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><small class="mu">${ps.length > 1 ? `Suas ${ps.length} sessões individuais com ${esc(nomeCoach())} · a próxima` : `Sua sessão individual com ${esc(nomeCoach())}`} · ${PEDIDO_ST[p.status] || esc(p.status)}</small><b>${esc(p.horario)}${ps.length > 1 ? ` <span class="mu" style="font-weight:500">+ ${ps.length - 1}</span>` : ''}</b></div><button class="link-discreto" data-ir="sessao">Ver ${ps.length > 1 ? 'todas' : 'detalhes'}</button></div>`;
   const prox = horariosLivres()[0];
-  return `<div class="card sessao-faixa"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><small class="mu">Sessão individual com ${esc(nomeCoach())} · ${esc(C.cfg.duracaoSessao || 60)} min</small><b>${prox ? `Próximo horário livre: ${quandoSessao(prox)}` : 'Converse a sós com o seu coach'}</b></div><button class="bt bt-linha bt-sm" data-ir="sessao">${prox ? 'Ver horários' : 'Saiba mais'}</button></div>`;
+  return `<div class="card sessao-faixa"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><small class="mu">Sessão individual com ${esc(nomeCoach())} · ${esc(doCoach('duracaoSessao') || 60)} min</small><b>${prox ? `Próximo horário livre: ${quandoSessao(prox)}` : 'Converse a sós com o seu coach'}</b></div><button class="bt bt-linha bt-sm" data-ir="sessao">${prox ? 'Ver horários' : 'Saiba mais'}</button></div>`;
 }
 // Convite discreto dentro de aulas e passos, no momento em que a pessoa pode travar.
 const conviteSessao = () => `<div class="convite-sessao">${IC_SESSAO}<span>Travou neste ponto? Converse a sós com ${esc(nomeCoach())}.</span><button class="link-discreto" data-ir="sessao">Marcar uma sessão 1:1</button></div>`;
@@ -41,8 +41,9 @@ VIEWS.coachee.sessao = () => {
   const passos = [['1', 'Escolha um horário', `da agenda de ${esc(primeiroNome(nomeCoach()))}`], ['2', 'Conte o assunto', 'e vá para o pagamento'], ['3', 'Pronto', 'a sessão é confirmada após o pagamento']];
   return `
   <div class="topo"><div><div class="sobre">Sessão individual</div><h1>Converse a sós com ${esc(nomeCoach())}</h1>
-    <div class="sub">${esc(C.cfg.duracaoSessao || 60)} minutos, online, para destravar um ponto específico da sua jornada · ${precoSessao()}</div></div></div>
+    <div class="sub">${esc(doCoach('duracaoSessao') || 60)} minutos, online, para destravar um ponto específico da sua jornada · ${precoSessao()}</div></div></div>
   ${ps.length ? `<div class="minhas-sessoes">${ps.length > 1 ? `<div class="rotulinho" style="margin-bottom:8px">Suas sessões marcadas (${ps.length})</div>` : ''}${ps.map(cartaoMinhaSessao).join('')}</div>` : ''}
+  ${C.perfilCoach && (C.perfilCoach.apresentacao || C.perfilCoach.foto) ? `<div class="card coach-apres">${C.perfilCoach.foto ? `<img src="${esc(urlSegura(C.perfilCoach.foto))}" alt="">` : ''}<div><b>${esc(nomeCoach())}</b><p class="mu">${esc(C.perfilCoach.apresentacao || '')}</p></div></div>` : ''}
   <div class="sessao-passos">${passos.map(([n, t, s]) => `<div><span>${n}</span><b>${t}</b><small>${s}</small></div>`).join('')}</div>
   <div class="grade g-21" style="align-items:start">
     <div class="card"><h3>Horários disponíveis</h3>
@@ -53,7 +54,7 @@ VIEWS.coachee.sessao = () => {
     <form class="card" id="form-sessao"><h3>${sel ? `Reservar ${quandoSessao(sel)}` : dias.length ? 'Escolha um horário ao lado' : 'Pedir uma sessão'}</h3>
       ${!dias.length ? '<label class="rotulo" for="ss-h">Melhores dias e horários</label><input class="campo" id="ss-h" placeholder="Ex.: terças e quintas de manhã">' : ''}
       <label class="rotulo" for="ss-m">Sobre o que você quer conversar?</label><textarea class="campo" id="ss-m" rows="4" placeholder="Ex.: estou travada para delegar e preciso de ajuda para montar a conversa com a equipe"></textarea>
-      <button class="bt bt-ouro" type="submit" ${dias.length && !sel ? 'disabled' : ''} style="width:100%">${urlSegura(C.cfg.pagSessao) ? 'Reservar e ir para o pagamento' : 'Reservar horário'}</button>
+      <button class="bt bt-ouro" type="submit" ${dias.length && !sel ? 'disabled' : ''} style="width:100%">${urlSegura(doCoach('pagSessao')) ? 'Reservar e ir para o pagamento' : 'Reservar horário'}</button>
       <p class="mu" style="font-size:12.5px;margin:10px 0 0">O horário fica reservado para você. A sessão é confirmada quando o pagamento for registrado.</p>
     </form>
   </div>`;
@@ -75,7 +76,7 @@ FORMS['form-sessao'] = async () => {
     Object.assign(x, { status: 'reservado', coacheeId: S.u.id }); Object.assign(doc, { horarioId: x.id, quando: x.data, hora: x.hora });
   }
   const id = await col('pedidos').adicionar(doc); C.pedidos.unshift({ id, ...doc }); S.horario = null;
-  const link = urlSegura(C.cfg.pagSessao); if (link) window.open(link, '_blank', 'noopener');
+  const link = urlSegura(doCoach('pagSessao')); if (link) window.open(link, '_blank', 'noopener');
   toast(x ? `Horário reservado: ${doc.horario}. ${link ? 'Conclua o pagamento na aba que abriu.' : 'A administração vai enviar o link de pagamento.'}` : 'Pedido registrado. Seu coach vai combinar o horário com você.'); render();
 };
 
@@ -98,7 +99,7 @@ VIEWS.coach.agenda = () => {
         <div><label class="rotulo" for="hr-h">Horários</label><input class="campo" id="hr-h" placeholder="09:00, 14:00, 18:30"></div></div>
       <label class="rotulo" for="hr-r">Repetir</label><select class="campo" id="hr-r"><option value="1">Só nesta data</option><option value="2">Por 2 semanas</option><option value="4">Por 4 semanas</option><option value="8">Por 8 semanas</option></select>
       <button class="bt bt-ouro" type="submit" style="width:100%">Abrir horários</button>
-      <p class="mu" style="font-size:12.5px;margin:10px 0 0">Preço, duração e link de pagamento ficam em Administrador → Planos (${precoSessao()} · ${esc(C.cfg.duracaoSessao || 60)} min).</p>
+      <p class="mu" style="font-size:12.5px;margin:10px 0 0">Preço, duração e link de pagamento da sessão: <button type="button" class="link-discreto" data-ir="meus" style="color:var(--gold-2)">Meus ajustes</button> (${precoSessao()} · ${esc(doCoach('duracaoSessao') || 60)} min).</p>
     </form>
   </div>`;
 };

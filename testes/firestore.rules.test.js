@@ -193,6 +193,14 @@ test('agenda: coach abre horários; coachee reserva só horário livre do própr
   await assertSucceeds(db('vini').doc('horarios/h1').delete());
 });
 
+test('ajustes de cada coach: só o próprio coach altera; todos leem', async () => {
+  await assertSucceeds(db('vini').doc('coaches/vini').set({ whatsapp: 'https://chat.whatsapp.com/x', precoSessao: '450' }));
+  await assertSucceeds(db('ana').doc('coaches/vini').get());
+  await assertFails(db('ana').doc('coaches/vini').set({ precoSessao: '1' }));
+  await assertFails(db('mari').doc('coaches/vini').set({ precoSessao: '1' }));
+  await assertFails(db('ana').doc('coaches/ana').set({ nome: 'x' }));
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));

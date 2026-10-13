@@ -217,6 +217,7 @@ VIEWS.admin.planos = () => {
       <div class="card"><h3>Sessão individual avulsa</h3><p class="mu" style="margin:0 0 10px;font-size:13px">Comprada à parte pelo coachee, no fim de "Minha jornada".</p>
         <div class="duas"><div><label class="rotulo" for="pl-sp">Preço (R$)</label><input class="campo" id="pl-sp" value="${esc(c.precoSessao || '')}" placeholder="A definir"></div><div><label class="rotulo" for="pl-sd">Duração (min)</label><input class="campo num" id="pl-sd" type="number" value="${esc(c.duracaoSessao || 60)}"></div></div>
         <label class="rotulo" for="pl-sl">Link de pagamento da sessão</label><input class="campo" id="pl-sl" value="${esc(c.pagSessao || '')}" placeholder="https://…"></div>
+        <p class="mu" style="font-size:12px;margin:4px 0 0">Valores da sessão = padrão do programa. Cada coach pode definir o próprio preço, duração e link em Meus ajustes.</p>
     </div>
   </form>
   <div class="card" style="margin-top:16px"><h3>Regras de acesso</h3><div class="lista">
@@ -298,7 +299,9 @@ Object.assign(ACOES, {
     const st = p.horarioId ? 'agendado' : 'pago';
     await col('pedidos').salvar(p.id, { status: st, pagoEm: hoje() }); p.status = st;
     if (p.horarioId) await col('horarios').salvar(p.horarioId, { status: 'confirmado' });
-    const v = { nome: p.nome || nomeDe(p.coacheeId), email: p.email || '', produto: 'sessao', forma: 'Link de pagamento', valor: C.cfg.precoSessao || '', status: 'pago', data: p.data, confirmadoEm: hoje(), confirmadoPor: S.u.id, pedidoId: p.id };
+    // Valor da sessão do coach desse coachee (Meus ajustes); sem ele, o padrão do programa.
+    const coachId = (C.usuarios.find(x => x.id === p.coacheeId) || {}).coachId; const pc = (C.coaches || []).find(x => x.id === coachId) || {};
+    const v = { nome: p.nome || nomeDe(p.coacheeId), email: p.email || '', produto: 'sessao', forma: 'Link de pagamento', valor: pc.precoSessao || C.cfg.precoSessao || '', status: 'pago', data: p.data, confirmadoEm: hoje(), confirmadoPor: S.u.id, pedidoId: p.id };
     const id = await col('vendas').adicionar(v); C.vendas.unshift({ id, ...v });
     toast(p.horarioId ? `Pagamento confirmado. Sessão agendada: ${p.horario}.` : 'Pagamento confirmado. O pedido aparece no topo de "Precisam de você" do coach.'); render();
   },
@@ -321,6 +324,7 @@ VIEWS.admin.ajustes = () => {
   <div class="grade g2">
     <div class="card"><h3>Programa e links</h3>
       ${campo('aj-nome', 'Nome do programa', c.nome, 'Programa de Alta Performance')}
+      <p class="mu" style="font-size:12.5px;margin:0 0 10px">Os três links abaixo são o padrão do programa. Cada coach pode definir os seus em Meus ajustes; valem os do coach quando preenchidos.</p>
       ${campo('aj-wa', 'Convite do Grupo Mentoria (WhatsApp)', c.whatsapp, 'https://chat.whatsapp.com/…')}
       ${campo('aj-disc', 'Link do teste DISC (NBM)', c.disc, 'https://…')}
       ${campo('aj-sala', 'Sala padrão da mentoria em grupo', c.sala, 'https://meet.google.com/…')}

@@ -134,6 +134,12 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'coacheeId', 'nome']));
     }
 
+    // Ajustes e perfil de cada coach: todos os logados leem; só o próprio coach (ou o administrador) altera.
+    match /coaches/{cid} {
+      allow read: if logado();
+      allow write: if (coach() && request.auth.uid == cid) || admin();
+    }
+
     match /vendas/{id} { allow read, write: if admin(); }
   }
 }

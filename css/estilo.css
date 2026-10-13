@@ -605,7 +605,26 @@ button.hora:hover{border-color:var(--gold)}
 .convite-sessao svg{width:20px;height:20px;fill:none;stroke:var(--gold-2);stroke-width:1.6;flex-shrink:0}
 .convite-sessao span{flex:1;min-width:180px}
 .convite-sessao .link-discreto{color:var(--gold-2);font-weight:600}
-.pdf-assess{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
-.pdf-assess small{font-size:12px}
 .minhas-sessoes{margin-bottom:16px}
 .minhas-sessoes .sessao-minha{margin-bottom:10px}
+
+/* ===== Cartão do PDF do assessment ===== */
+.pdf-card{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;margin:2px 0 16px;border:1px solid rgba(201,164,92,.55);border-radius:12px;background:linear-gradient(135deg,rgba(201,164,92,.16),rgba(201,164,92,.04))}
+.pdf-card.vazio-pdf{border-style:dashed;border-color:#4A443A;background:none}
+.pdf-card.vazio-pdf .pdf-ic{opacity:.45}
+.pdf-ic{width:42px;height:50px;flex-shrink:0;position:relative;border-radius:6px;background:#F4F1EA;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;box-sizing:border-box}
+.pdf-ic:before{content:"";position:absolute;top:0;right:0;border-width:0 12px 12px 0;border-style:solid;border-color:var(--surface) var(--surface) #C9C2B2 #C9C2B2;border-radius:0 6px 0 3px}
+.pdf-ic b{font-size:10.5px;font-weight:800;color:#fff;background:#B8452F;border-radius:3px;padding:1px 4px;letter-spacing:.04em}
+.pdf-tx{flex:1;min-width:160px;display:flex;flex-direction:column;gap:2px}
+.pdf-tx b{font-size:15px}.pdf-tx small{color:var(--muted);font-size:12.5px}
+.pdf-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.pdf-card .bt{min-height:42px;padding:0 18px;display:inline-flex;align-items:center;gap:8px}
+@media (max-width:520px){.pdf-acoes{width:100%}.pdf-acoes .bt-ouro{flex:1;justify-content:center}}
+
+/* ===== Meus ajustes e apresentação do coach ===== */
+.ajuda{font-size:12px;margin:-6px 0 12px}
+.meu-foto{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.meu-foto img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)}
+.coach-apres{display:flex;gap:16px;align-items:center;margin-bottom:16px}
+.coach-apres img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex-shrink:0}
+.coach-apres p{margin:4px 0 0;font-size:14px;line-height:1.5}

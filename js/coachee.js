@@ -2,7 +2,7 @@
 
 const R = Regras;
 const P = () => R.paradas(S.u, C.D, hoje());
-const nomeCoach = () => S.u.coachNome || 'seu coach';
+const nomeCoach = () => (C.perfilCoach && C.perfilCoach.nome) || S.u.coachNome || 'seu coach';
 const proxEncontro = () => C.encontros.find(e => e.data >= hoje()) || null;
 const metaAtual = () => R.meta(C.L, C.D);
 // A meta pode ser escrita já no "Hoje", antes de liberar a Trilha II: as respostas ficam guardadas no passo da meta
@@ -392,11 +392,17 @@ MUDA.foto = async t => {
 /* ===================== Quem eu sou (RF-24, RF-28) ===================== */
 // PDF do resultado do assessment: o coach envia; o coachee só abre.
 const pdfAssess = (D, k) => (D.relatorios || []).find(r => r.tipo === k);
+const NOME_PDF = { disc: 'Resultado completo do DISC', ie: 'Resultado da inteligência emocional' };
+const IC_ABRIR = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M19 14v6H4V5h6"/></svg>';
+// Cartão de arquivo, logo abaixo do título: ícone de PDF, nome claro e o botão "Abrir PDF".
 function blocoPdfAssess(k, D, paraCoach, cid) {
-  const r = pdfAssess(D, k);
-  const ver = r ? botaoMaterial({ url: r.arquivo }, 'Ver PDF do resultado') : '';
-  if (!paraCoach) return r ? `<div class="pdf-assess">${ver}<small class="mu">enviado por ${esc(nomeCoach())} em ${brc(r.data)}</small></div>` : '';
-  return `<div class="pdf-assess">${ver}<button class="bt ${r ? 'bt-fantasma' : 'bt-linha'} bt-sm" data-acao="anexar-pdf-assess" data-c="${esc(cid)}" data-k="${k}">${r ? 'Trocar PDF' : 'Anexar PDF do resultado'}</button>${r ? `<small class="mu">enviado em ${brc(r.data)}</small>` : ''}</div>`;
+  const r = pdfAssess(D, k); const nome = NOME_PDF[k] || `Resultado: ${CONTEUDO.ASSESS[k].nome}`;
+  const anexar = rot => `<button class="bt ${r ? 'bt-fantasma' : 'bt-linha'} bt-sm" data-acao="anexar-pdf-assess" data-c="${esc(cid)}" data-k="${k}">${rot}</button>`;
+  if (!r) return paraCoach ? `<div class="pdf-card vazio-pdf"><span class="pdf-ic"><b>PDF</b></span><span class="pdf-tx"><b>${nome}</b><small>Ainda sem arquivo. O coachee vê o PDF aqui quando você enviar.</small></span>${anexar('Anexar PDF do resultado')}</div>` : '';
+  const abrir = ehArquivoFs(r.arquivo) ? `<button class="bt bt-ouro" data-acao="abrir-arquivo" data-ref="${esc(r.arquivo)}">${IC_ABRIR}Abrir PDF</button>`
+    : urlSegura(r.arquivo) ? `<a class="bt bt-ouro" href="${esc(urlSegura(r.arquivo))}" target="_blank" rel="noopener">${IC_ABRIR}Abrir PDF</a>` : '';
+  return `<div class="pdf-card"><span class="pdf-ic"><b>PDF</b></span><span class="pdf-tx"><b>${nome}</b><small>Relatório enviado por ${paraCoach ? 'você' : esc(nomeCoach())} · ${brc(r.data)}</small></span>
+    <span class="pdf-acoes">${abrir}${paraCoach ? anexar('Trocar PDF') : ''}</span></div>`;
 }
 function cartaoAssess(k, D, paraCoach, Pp, cid = '') {
   const A = CONTEUDO.ASSESS[k]; const hs = R.historico(D, k); const u = hs[hs.length - 1]; const ant = hs[hs.length - 2];
@@ -407,7 +413,7 @@ function cartaoAssess(k, D, paraCoach, Pp, cid = '') {
       return `<div class="lin"><span>${esc(k === 'disc' ? DISC[dim][0] : dim)}</span><div style="display:grid;gap:3px">${larg0 != null ? `<div class="barra fina antes"><b style="width:${larg0}%"></b></div>` : ''}<div class="barra ${larg0 != null ? 'fina' : ''}"><b style="width:${larg}%"></b></div></div><span class="num">${v}%${d ? ` <small class="${d > 0 ? 'ouro-tx' : 'mu'}">${d > 0 ? '+' : ''}${d}</small>` : ''}</span></div>`; }).join('') : '';
   const ord = u && k === 'disc' ? Object.entries(u.r).sort((x, y) => y[1] - x[1]) : null;
   const titulo = ord ? `<div style="font-family:var(--f-display);font-size:24px;font-weight:600">${DISC[ord[0][0]][0]} <span class="mu" style="font-size:16px">com ${DISC[ord[1][0]][0]}</span></div>` : '';
-  const disc = urlSegura(C.cfg.disc);
+  const disc = urlSegura(doCoach('disc'));
   let acao = '';
   if (!paraCoach) {
     const linkNbm = rot => disc ? `<a class="bt bt-linha bt-sm" href="${esc(disc)}" target="_blank" rel="noopener">${rot}</a>` : '';
@@ -419,9 +425,9 @@ function cartaoAssess(k, D, paraCoach, Pp, cid = '') {
   }
   const chip = !u ? '<span class="chip warn acao">pendente</span>' : lib ? '<span class="chip ouro acao">liberado para refazer</span>' : `<span class="chip ok acao">feito em ${brc(u.data)}</span>`;
   return `<div class="card ${lib && !paraCoach ? 'ouro' : ''}"><h3>${esc(A.nome)} ${chip}</h3>
+    ${blocoPdfAssess(k, D, paraCoach, cid)}
     ${u ? `${titulo}${ant ? `<div class="comp-leg" style="margin:6px 0 8px"><span><i class="antes"></i>${br(ant.data)}</span><span><i class="depois"></i>${br(u.data)}</span></div>` : ''}<div class="disc" style="margin-top:8px">${linhas}</div>` : `<p class="mu" style="margin:0 0 10px">${esc(A.desc)}</p>`}
     ${ord && !paraCoach ? `<div class="sep"></div><div class="rotulinho" style="margin-bottom:4px">Leitura guiada</div><p style="margin:0 0 4px;font-size:13px">${esc(DISC[ord[0][0]][1])} ${esc(DISC[ord[0][0]][2])}</p>` : ''}
-    ${blocoPdfAssess(k, D, paraCoach, cid)}
     <div class="sep"></div><small class="mu num">${hs.length ? `Feito em ${hs.map(x => brc(x.data)).join(' · ')}` : 'Ainda não feito'}</small>
     ${acao ? `<div style="margin-top:10px;display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center">${acao}</div>` : ''}</div>`;
 }
@@ -688,7 +694,7 @@ VIEWS.coachee.comunidade = () => {
     <div style="display:flex;flex-direction:column;gap:16px">
     <div class="card" id="grupo-mentoria"><h3>Grupo Mentoria</h3>
       <p class="mu" style="margin:0 0 14px;font-size:13.5px">O grupo da turma no WhatsApp: avisos dos encontros, dúvidas e trocas com os outros coachees e com ${esc(nomeCoach())}.</p>
-      ${urlSegura(C.cfg.whatsapp) ? `<a class="bt bt-wa" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="margin-right:6px"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>Falar no Grupo Mentoria</a>`
+      ${urlSegura(doCoach('whatsapp')) ? `<a class="bt bt-wa" href="${esc(urlSegura(doCoach('whatsapp')))}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="margin-right:6px"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>Falar no Grupo Mentoria</a>`
         : '<span class="mu" style="font-size:13px">O link do grupo ainda não foi cadastrado. Avise o seu coach.</span>'}</div>
     ${ev && ev.titulo ? `<div class="card ouro"><h3>Evento presencial anual</h3>
       <div style="font-family:var(--f-display);font-size:26px;font-weight:600;line-height:1.1">${esc(ev.titulo)}</div>

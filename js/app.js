@@ -227,11 +227,13 @@ async function carregar() {
     C.pedidos = (await col('pedidos').listar('coacheeId', u.id)).sort(recente);
     C.inscrito = !!(await col('inscricoes').obter(u.id));
     C.horarios = u.coachId ? await opcional(col('horarios').listar('coachId', u.coachId)) : [];
+    C.perfilCoach = u.coachId ? await opcional(col('coaches').obter(u.coachId), null) : null;
   }
-  if (modo === 'coach') { await carregarCarteira(); C.horarios = await opcional(col('horarios').listar('coachId', u.id)); }
+  if (modo === 'coach') { await carregarCarteira(); C.horarios = await opcional(col('horarios').listar('coachId', u.id)); C.perfilCoach = await opcional(col('coaches').obter(u.id), null); }
   if (modo === 'admin') {
     const [usuarios, vendas, pedidos] = await Promise.all([col('usuarios').listar(), col('vendas').listar(), col('pedidos').listar()]);
     C.usuarios = usuarios; C.vendas = vendas.sort(recente); C.pedidos = pedidos.sort(recente);
+    C.coaches = await opcional(col('coaches').listar()); C.perfilCoach = null;
   }
 }
 
@@ -250,7 +252,7 @@ const daCarteira = id => (C.carteira || []).find(c => c.u.id === id);
 /* ===================== Navegação e casca ===================== */
 const NAV = {
   coachee: [['painel', 'Hoje'], ['jornada', 'Minha jornada'], ['quem', 'Quem eu sou'], ['evolucao', 'Minha evolução'], ['pratica', 'Na prática'], ['sessao', 'Sessão 1:1'], ['comunidade', 'Comunidade']],
-  coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino'], ['agenda', 'Minha agenda'], ['certificado', 'Certificado']],
+  coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino'], ['agenda', 'Minha agenda'], ['certificado', 'Certificado'], ['meus', 'Meus ajustes']],
   admin: [['painel', 'Como estamos'], ['pessoas', 'Pessoas'], ['planos', 'Planos'], ['entradas', 'Novas entradas'], ['ajustes', 'Ajustes']]
 };
 const ATIVO = { coachee: { item: 'jornada', questionario: 'quem', certificado: 'jornada', relatorio: 'quem' }, coach: { ficha: 'pessoas' }, admin: {} };
@@ -270,16 +272,20 @@ const IC = {
   certificado: '<circle cx="12" cy="9" r="5"/><path d="M9 13.5 7.5 21l4.5-2.5 4.5 2.5-1.5-7.5"/>',
   sessao: '<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2"/>',
   agenda: '<path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M8 14h2M14 14h2M8 17h2"/>',
+  meus: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   busca: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'
 };
 const svg = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const PAPEL = { coachee: 'Coachee · Plano Master', coach: 'Coach', admin: 'Administrador' };
 const nomePrograma = () => C.cfg.nome || 'Programa de Alta Performance';
-const botaoWhats = (cls = '') => C.cfg.whatsapp ? `<a class="bt bt-wa ${cls}" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">Falar no Grupo Mentoria</a>` : '';
+// Ajustes de cada coach (coleção coaches): grupo, sala, DISC, sessão 1:1, nome de exibição e apresentação.
+// O que o coach não preencher vem do padrão do programa (Administrador → Ajustes e Planos).
+const doCoach = k => (C.perfilCoach && C.perfilCoach[k]) || C.cfg[k] || '';
+const botaoWhats = (cls = '') => doCoach('whatsapp') ? `<a class="bt bt-wa ${cls}" href="${esc(urlSegura(doCoach('whatsapp')))}" target="_blank" rel="noopener">Falar no Grupo Mentoria</a>` : '';
 // Acesso discreto ao grupo no menu (o botão de destaque fica no cartão Grupo Mentoria, em Comunidade).
 const IC_WA = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>';
 // Sempre visível para o coachee; sem o link cadastrado em Ajustes, avisa em vez de abrir.
-const linkGrupo = () => urlSegura(C.cfg.whatsapp) ? `<a class="nav-grupo" href="${esc(urlSegura(C.cfg.whatsapp))}" target="_blank" rel="noopener">${IC_WA}Grupo Mentoria</a>`
+const linkGrupo = () => urlSegura(doCoach('whatsapp')) ? `<a class="nav-grupo" href="${esc(urlSegura(doCoach('whatsapp')))}" target="_blank" rel="noopener">${IC_WA}Grupo Mentoria</a>`
   : `<button type="button" class="nav-grupo" data-acao="grupo-sem-link">${IC_WA}Grupo Mentoria</button>`;
 ACOES['grupo-sem-link'] = () => toast('O link do Grupo Mentoria ainda não foi cadastrado. Avise o seu coach.', 'aviso');
 
