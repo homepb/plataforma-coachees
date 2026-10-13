@@ -47,7 +47,7 @@ async function definirSenha(email, senha) {
   const p = await b.newPage({ viewport: { width: 1366, height: 900 } });
   const erros = [];
   p.on('pageerror', e => erros.push(e.message));
-  p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|net::ERR/.test(m.text())) erros.push(m.text()); });
+  p.on('console', m => { if (m.type() === 'error' && !/fonts\.g|net::ERR|limite é 5 MB/.test(m.text())) erros.push(m.text()); });
   await p.route('https://www.gstatic.com/firebasejs/**', r => r.fulfill({ path: path.join(SDK, path.basename(new URL(r.request().url()).pathname)), contentType: 'text/javascript' }));
   await p.goto(`http://localhost:${PORTA}/`);
 
@@ -147,12 +147,26 @@ async function definirSenha(email, senha) {
   await p.click('button[data-acao="pergunta"]'); await p.fill('#pq-t', 'O que você vai delegar?'); await salvarModal();
   await p.click('[data-acao="aula"][data-id="a12"]'); await p.fill('#au-v', 'https://youtu.be/dQw4w9WgXcQ'); await salvarModal();
   ok(await p.evaluate(() => C.mensagens.length === 1 && C.perguntas.length === 1 && C.itens.a12.video), 'coach publica mensagem, pergunta e vídeo');
+  // PDF da biblioteca sem Cloudinary: fica no banco em pedaços (1,2 MB → 3 pedaços); acima de 5 MB é recusado.
+  const pdf = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(1200000, 65)]);
+  await p.click('[data-acao="material"]:not([data-id])'); await p.fill('#mt-t', 'Manual da delegação');
+  await p.setInputFiles('#mt-f', { name: 'manual-delegação.pdf', mimeType: 'application/pdf', buffer: Buffer.alloc(5100000, 65) }); await espera(800);
+  ok((await p.inputValue('#mt-u')) === '' && (await p.textContent('#toast')).includes('limite é 5 MB'), 'arquivo acima de 5 MB é recusado com orientação');
+  await p.setInputFiles('#mt-f', { name: 'manual-delegação.pdf', mimeType: 'application/pdf', buffer: pdf }); await espera(2500);
+  ok((await p.textContent('#mt-u-info')).includes('manual-delegação.pdf'), 'PDF enviado sem Cloudinary mostra o nome do arquivo');
+  await salvarModal();
+  ok(await p.evaluate(() => /^arquivo:.+:3:manual-delega/.test(C.materiais[0].url)), 'material com PDF guardado no banco');
 
   console.log('\n== coachee de novo ==');
   await entrar('ana@teste.com', 'Ana12345!');
   ok((await texto()).includes('Delegar não é perder o controle'), 'coachee vê a mensagem da semana');
   await p.click('[data-acao="ouvir-fs"]'); await espera(1500);
   ok(await p.evaluate(async () => { const a = document.querySelector('audio[data-msg]'); return !!a && (await (await fetch(a.src)).blob()).size === 1500000; }), 'coachee ouve o áudio da mensagem no Hoje');
+  await ir('comunidade');
+  const [aba] = await Promise.all([p.context().waitForEvent('page'), p.click('[data-acao="abrir-arquivo"]')]); await espera(1500);
+  // O navegador de teste (sem tela) não mostra PDF; basta conferir que a aba abriu e que o arquivo veio inteiro.
+  ok(!!aba && await p.evaluate(async () => { const u = Object.values(arquivosCache)[0]; const b = u && await (await fetch(u)).blob(); return !!b && b.size === 1200009 && b.type === 'application/pdf'; }), 'coachee abre o PDF da biblioteca (arquivo inteiro, em nova aba)');
+  await aba.close(); await ir('painel');
   await p.fill('#pergunta-resp', 'O relatório mensal.'); await p.click('#form-pergunta button'); await espera(800);
   await ir('item', 'e3'); ok((await texto()).includes('Meta clara. Vamos juntos.'), 'coachee vê o comentário do coach');
   await ir('item', 'a12'); ok(!!(await p.$('.video iframe')), 'aula com vídeo do YouTube dentro da plataforma');

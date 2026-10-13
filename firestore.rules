@@ -45,6 +45,8 @@ service cloud.firestore {
     match /mensagens/{id} { allow read: if logado(); allow write: if equipe(); }
     // Áudio da mensagem da semana guardado em pedaços (quando não há Cloudinary).
     match /audios/{id} { allow read: if logado(); allow write: if equipe(); }
+    // PDFs e outros arquivos da biblioteca guardados em pedaços (quando não há Cloudinary).
+    match /arquivos/{id} { allow read: if logado(); allow write: if equipe(); }
     match /perguntas/{id} { allow read: if logado(); allow write: if equipe(); }
     match /encontros/{id} { allow read: if logado(); allow write: if equipe(); }
     match /materiais/{id} { allow read: if logado(); allow write: if equipe(); }

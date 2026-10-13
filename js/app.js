@@ -83,9 +83,22 @@ const AUDIO_FS = 'firestore:';
 const AUDIO_MAX = 5e6;
 const audiosCache = {};
 const blobBase64 = b => new Promise((ok, erro) => { const l = new FileReader(); l.onload = () => ok(String(l.result).split(',')[1]); l.onerror = erro; l.readAsDataURL(b); });
-async function guardarAudio(blob, id) {
+// Grava um arquivo em pedaços (documentos <id>_0, <id>_1…) e devolve quantos pedaços foram usados.
+async function guardarPartes(colecao, blob, id, extra = {}) {
   const b64 = await blobBase64(blob); const T = 700000; const n = Math.ceil(b64.length / T);
-  for (let i = 0; i < n; i++) await col('audios').salvar(`${id}_${i}`, { msgId: id, i, n, tipo: blob.type || 'audio/webm', parte: b64.slice(i * T, (i + 1) * T) });
+  for (let i = 0; i < n; i++) await col(colecao).salvar(`${id}_${i}`, { ...extra, i, n, tipo: blob.type || 'application/octet-stream', parte: b64.slice(i * T, (i + 1) * T) });
+  return n;
+}
+// Junta os pedaços de volta em um endereço local (blob:) que o navegador abre.
+async function montarPartes(colecao, id, n, erro) {
+  const partes = await Promise.all(Array.from({ length: +n }, (_, i) => col(colecao).obter(`${id}_${i}`)));
+  if (partes.some(p => !p)) throw new Error(erro);
+  const bin = atob(partes.map(p => p.parte).join('')); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: partes[0].tipo }));
+}
+async function guardarAudio(blob, id) {
+  const n = await guardarPartes('audios', blob.type ? blob : new Blob([blob], { type: 'audio/webm' }), id, { msgId: id });
   return `${AUDIO_FS}${id}:${n}`;
 }
 // Player da mensagem: link direto (Cloudinary ou demonstração) ou botão que monta o áudio guardado no banco.
@@ -99,17 +112,46 @@ ACOES['ouvir-fs'] = async t => {
   const [id, n] = t.dataset.ref.slice(AUDIO_FS.length).split(':');
   t.disabled = true; t.textContent = 'Carregando o áudio…';
   try {
-    if (!audiosCache[id]) {
-      const partes = await Promise.all(Array.from({ length: +n }, (_, i) => col('audios').obter(`${id}_${i}`)));
-      if (partes.some(p => !p)) throw new Error('O áudio desta mensagem não foi encontrado.');
-      const bin = atob(partes.map(p => p.parte).join('')); const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      audiosCache[id] = URL.createObjectURL(new Blob([bytes], { type: partes[0].tipo }));
-    }
+    if (!audiosCache[id]) audiosCache[id] = await montarPartes('audios', id, n, 'O áudio desta mensagem não foi encontrado.');
     const a = document.createElement('audio'); a.controls = true; a.src = audiosCache[id]; a.dataset.msg = t.dataset.msg;
     if (S.modo === 'coachee' && typeof marcarOuvida === 'function') a.onplay = () => marcarOuvida(t.dataset.msg);
     t.replaceWith(a); a.play().catch(() => {});
   } catch (e) { t.disabled = false; t.textContent = '▶ Ouvir a mensagem'; throw e; }
+};
+
+/* ===================== Arquivos guardados no banco ===================== */
+// Sem Cloudinary, PDFs e outros arquivos da biblioteca ficam no Firestore (coleção "arquivos"), em pedaços,
+// com o mesmo limite de 5 MB do áudio. O material guarda a referência "arquivo:<id>:<pedaços>:<nome>".
+const ARQ_FS = 'arquivo:';
+const ARQ_MAX = 5e6;
+const arquivosCache = {};
+const ehArquivoFs = u => String(u || '').startsWith(ARQ_FS);
+const lerRefArquivo = ref => { const [id, n, ...nome] = String(ref).slice(ARQ_FS.length).split(':'); return { id, n: +n, nome: decodeURIComponent(nome.join(':') || 'arquivo') }; };
+async function guardarArquivo(arquivo) {
+  if (arquivo.size > ARQ_MAX) throw new Error(`Este arquivo tem ${(arquivo.size / 1e6).toFixed(1).replace('.', ',')} MB e o limite é 5 MB. Para arquivos maiores, coloque o arquivo no Google Drive (compartilhado com "qualquer pessoa com o link") e cole o link no campo.`);
+  const id = `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const n = await guardarPartes('arquivos', arquivo, id, { arqId: id, nome: arquivo.name });
+  return `${ARQ_FS}${id}:${n}:${encodeURIComponent(arquivo.name)}`;
+}
+async function apagarArquivo(ref) {
+  if (!ehArquivoFs(ref)) return; const { id, n } = lerRefArquivo(ref);
+  await Promise.all(Array.from({ length: n }, (_, i) => col('arquivos').remover(`${id}_${i}`))).catch(() => {});
+}
+// Botão ou link para abrir um material: arquivo guardado no banco ou link comum (Drive, Cloudinary…).
+function botaoMaterial(m, rotulo = 'Abrir') {
+  if (ehArquivoFs(m.url)) return `<button class="bt bt-fantasma bt-sm" data-acao="abrir-arquivo" data-ref="${esc(m.url)}">${rotulo}</button>`;
+  const u = urlSegura(m.url); return u ? `<a class="bt bt-fantasma bt-sm" href="${esc(u)}" target="_blank" rel="noopener">${rotulo}</a>` : '';
+}
+ACOES['abrir-arquivo'] = async t => {
+  const { id, n, nome } = lerRefArquivo(t.dataset.ref);
+  // A aba é aberta já no clique (antes de baixar), senão o navegador a bloqueia como pop-up.
+  const aba = window.open('', '_blank'); if (aba) aba.document.write('<p style="font-family:sans-serif">Abrindo o arquivo…</p>');
+  const txt = t.textContent; t.disabled = true; t.textContent = 'Carregando…';
+  try {
+    if (!arquivosCache[id]) arquivosCache[id] = await montarPartes('arquivos', id, n, 'Este arquivo não foi encontrado. Peça ao coach para enviá-lo de novo.');
+    if (aba) aba.location.href = arquivosCache[id];
+    else { const a = document.createElement('a'); a.href = arquivosCache[id]; a.download = nome; document.body.appendChild(a); a.click(); a.remove(); }
+  } catch (e) { if (aba) aba.close(); throw e; } finally { t.disabled = false; t.textContent = txt; }
 };
 
 /* ===================== Carregamento ===================== */

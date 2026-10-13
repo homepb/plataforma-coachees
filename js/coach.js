@@ -327,7 +327,7 @@ VIEWS.coach.ensino = () => {
     </div>`; }).join('')}
   </div>
   <div class="card" style="margin-top:16px"><h3>Biblioteca <button class="bt bt-linha bt-sm acao" data-acao="material">+ Material</button></h3>
-    <div class="lista">${C.materiais.map(m => `<div class="item"><span class="chip ouro" style="min-width:86px;justify-content:center">${esc(m.tipo)}</span><div class="tx"><b>${esc(m.titulo)}</b><small>${esc(m.descricao)}</small></div>${urlSegura(m.url) ? '' : '<span class="chip warn">sem arquivo</span>'}<button class="bt bt-fantasma bt-sm" data-acao="material" data-id="${m.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum material.</div>'}</div></div>
+    <div class="lista">${C.materiais.map(m => `<div class="item"><span class="chip ouro" style="min-width:86px;justify-content:center">${esc(m.tipo)}</span><div class="tx"><b>${esc(m.titulo)}</b><small>${esc(m.descricao)}</small></div>${botaoMaterial(m) || '<span class="chip warn">sem arquivo</span>'}<button class="bt bt-fantasma bt-sm" data-acao="material" data-id="${m.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum material.</div>'}</div></div>
   <div class="card" style="margin-top:16px"><h3>Fornecedores e contatos indicados <button class="bt bt-linha bt-sm acao" data-acao="fornecedor">+ Fornecedor</button></h3>
     <div class="lista">${C.fornecedores.map(f => `<div class="item"><span class="chip">${esc(f.area)}</span><div class="tx"><b>${esc(f.titulo)}</b><small>${esc(f.descricao)}</small></div><button class="bt bt-fantasma bt-sm" data-acao="fornecedor" data-id="${f.id}">Editar</button></div>`).join('') || '<div class="vazio">Nenhum fornecedor.</div>'}</div></div>`;
 };
@@ -450,16 +450,31 @@ ACOES.mover = async t => {
   await Promise.all(nova.map((x, k) => { x.ordem = k + 1; return col('itens').salvar(x.id, { ordem: k + 1 }); }));
   C.L = R.lista(C.trilhas, C.itens); render();
 };
+// Envio de arquivo da biblioteca: Cloudinary, se configurado; senão fica guardado no próprio banco (até 5 MB).
 MUDA['arquivo-link'] = async t => {
-  const f = t.files && t.files[0]; if (!f) return; toast('Enviando o arquivo…');
-  const url = await Dados.enviarArquivo(f, 'materiais', C.cfg.cloudinary); document.getElementById(t.dataset.alvo).value = url; toast('Arquivo enviado.');
+  const f = t.files && t.files[0]; if (!f) return; const alvo = document.getElementById(t.dataset.alvo);
+  const cloud = C.cfg.cloudinary || {}; const noBanco = !Dados.demo && !(cloud.nome && cloud.preset);
+  try {
+    toast(`Enviando ${f.name}…`);
+    alvo.value = noBanco ? await guardarArquivo(f) : await Dados.enviarArquivo(f, 'materiais', cloud);
+    estadoArquivo(alvo); toast('Arquivo enviado. Clique em "Salvar" para publicar o material.');
+  } finally { t.value = ''; }
 };
+// Mostra o nome do arquivo guardado no banco, em vez da referência interna.
+function estadoArquivo(alvo) {
+  const fs = ehArquivoFs(alvo.value); const info = document.getElementById(alvo.id + '-info');
+  alvo.readOnly = fs; alvo.style.display = fs ? 'none' : '';
+  if (info) info.innerHTML = fs ? `✓ <b>${esc(lerRefArquivo(alvo.value).nome)}</b> guardado na plataforma <button type="button" class="link-discreto" data-acao="trocar-por-link" data-alvo="${alvo.id}">usar um link</button>` : '';
+}
+ACOES['trocar-por-link'] = t => { const alvo = document.getElementById(t.dataset.alvo); alvo.value = ''; estadoArquivo(alvo); alvo.focus(); };
 
 function modalSimples(colecao, lista, id, titulo, campos, msg) {
   const x = lista.find(i => i.id === id) || {};
   abrirModal(id ? `Editar ${titulo}` : `Novo ${titulo}`, campos(x) + (id ? `<div class="sep"></div><button type="button" class="link-discreto" data-acao="excluir-simples" data-col="${colecao}" data-id="${id}">Excluir</button>` : ''), 'Salvar', async () => {
     const d = Object.fromEntries([...$('#modal').querySelectorAll('[data-k]')].map(c => [c.dataset.k, c.value.trim()]));
     if (!d.titulo) { toast('Informe o título.'); return false; }
+    // Arquivo trocado ou retirado: o antigo, se estava guardado no banco, é apagado.
+    if (id && x.url !== d.url) apagarArquivo(x.url);
     if (id) { await col(colecao).salvar(id, d); Object.assign(x, d); } else { const nid = await col(colecao).adicionar(d); lista.push({ id: nid, ...d }); }
     toast(msg); render();
   });
@@ -469,8 +484,10 @@ Object.assign(ACOES, {
     modalSimples('materiais', C.materiais, t.dataset.id, 'material', m => `<label class="rotulo" for="mt-t">Título</label><input class="campo" id="mt-t" data-k="titulo" value="${esc(m.titulo || '')}">
       <label class="rotulo" for="mt-tp">Tipo</label><select class="campo" id="mt-tp" data-k="tipo">${['Manual', 'E-book', 'Ferramenta'].map(x => `<option ${m.tipo === x ? 'selected' : ''}>${x}</option>`).join('')}</select>
       <label class="rotulo" for="mt-d">Descrição</label><input class="campo" id="mt-d" data-k="descricao" value="${esc(m.descricao || '')}">
-      <label class="rotulo" for="mt-u">Arquivo ou link</label><div class="envio"><input class="campo" id="mt-u" data-k="url" style="margin:0;flex:1" value="${esc(m.url || '')}" placeholder="https://…"><label class="bt bt-fantasma bt-sm" for="mt-f">Enviar arquivo</label><input type="file" id="mt-f" data-muda="arquivo-link" data-alvo="mt-u" hidden></div>
+      <label class="rotulo" for="mt-u">Arquivo ou link</label><div class="envio"><span id="mt-u-info" class="mu" style="flex:1;font-size:13px"></span><input class="campo" id="mt-u" data-k="url" style="margin:0;flex:1" value="${esc(m.url || '')}" placeholder="https://…"><label class="bt bt-fantasma bt-sm" for="mt-f">Enviar arquivo</label><input type="file" id="mt-f" data-muda="arquivo-link" data-alvo="mt-u" hidden></div>
+      <p class="mu" style="font-size:12px;margin:-4px 0 12px">PDF ou outro arquivo de até 5 MB. Maior que isso, cole um link do Google Drive.</p>
       <label class="rotulo" for="mt-g">Palavras para a busca</label><input class="campo" id="mt-g" data-k="tags" value="${esc(m.tags || '')}">`, 'Material salvo na biblioteca.');
+    estadoArquivo($('#mt-u'));
   },
   fornecedor(t) {
     modalSimples('fornecedores', C.fornecedores, t.dataset.id, 'fornecedor', f => `<label class="rotulo" for="fo-a">Área</label><input class="campo" id="fo-a" data-k="area" value="${esc(f.area || '')}" placeholder="Ex.: Contabilidade">
@@ -480,7 +497,7 @@ Object.assign(ACOES, {
   },
   async 'excluir-simples'(t) {
     const nome = t.dataset.col; await col(nome).remover(t.dataset.id);
-    const k = nome === 'materiais' ? 'materiais' : 'fornecedores'; C[k] = C[k].filter(x => x.id !== t.dataset.id);
+    const k = nome === 'materiais' ? 'materiais' : 'fornecedores'; const x = C[k].find(i => i.id === t.dataset.id); if (x) apagarArquivo(x.url); C[k] = C[k].filter(x => x.id !== t.dataset.id);
     $('#modal').close(); toast('Excluído.'); render();
   }
 });

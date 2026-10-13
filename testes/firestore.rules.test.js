@@ -162,6 +162,15 @@ test('modelo do certificado: a equipe configura, o coachee só lê', async () =>
   await assertFails(db('mari').doc('config/programa').set({ nome: 'x' }));
 });
 
+test('arquivos da biblioteca: equipe envia e apaga, todos os logados abrem', async () => {
+  await assertSucceeds(db('vini').doc('arquivos/a1_0').set({ arqId: 'a1', i: 0, n: 1, nome: 'x.pdf', parte: 'JVBERi0=' }));
+  await assertSucceeds(db('ana').doc('arquivos/a1_0').get());
+  await assertFails(db('ana').doc('arquivos/a1_0').set({ parte: 'x' }));
+  await assertFails(db('ana').doc('arquivos/a1_0').delete());
+  await assertFails(env.unauthenticatedContext().firestore().doc('arquivos/a1_0').get());
+  await assertSucceeds(db('vini').doc('arquivos/a1_0').delete());
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));
