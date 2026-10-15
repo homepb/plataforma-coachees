@@ -140,6 +140,12 @@ service cloud.firestore {
       allow write: if (coach() && request.auth.uid == cid) || admin();
     }
 
+    // Lembretes enviados ao coachee (ex.: e-mail da parada aberta), para não repetir.
+    match /avisos/{id} {
+      allow read: if podeLer(resource.data.coacheeId);
+      allow create: if coachDe(request.resource.data.coacheeId);
+    }
+
     match /vendas/{id} { allow read, write: if admin(); }
   }
 }

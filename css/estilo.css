@@ -632,3 +632,14 @@ button.hora:hover{border-color:var(--gold)}
 .sm-acoes .bt{display:inline-flex;align-items:center;gap:6px}
 .sm-nota{max-width:260px;font-size:12.5px}
 .ad-bts{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+
+/* ===== Parada aberta no Hoje ===== */
+.parada-hoje{margin-bottom:16px;padding:22px 26px;border-color:rgba(201,164,92,.7);background:radial-gradient(120% 160% at 100% 0%,rgba(201,164,92,.16),transparent 60%),var(--surface)}
+.parada-hoje.atrasada{border-color:var(--warn)}
+.ph-cab{display:flex;gap:16px;align-items:center}
+.ph-ic{width:52px;height:52px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-family:var(--f-display);font-size:26px;font-weight:600;color:#17130B;background:radial-gradient(circle at 50% 70%,#F6E6BC,#C9A45C 60%,#8E6B2E)}
+.parada-hoje h2{font-family:var(--f-display);font-size:30px;font-weight:600;margin:2px 0 4px;line-height:1.1}
+.ph-lista{list-style:none;margin:14px 0 16px;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px;font-size:14px}
+.ph-lista li{color:var(--ivory)}.ph-lista li.ok{color:var(--ok);text-decoration:line-through;text-decoration-color:rgba(141,191,149,.5)}
+.ph-bts{display:flex;gap:10px;flex-wrap:wrap}
+@media (max-width:640px){.ph-lista{grid-template-columns:1fr}.parada-hoje h2{font-size:24px}.ph-bts .bt-ouro{flex:1}}

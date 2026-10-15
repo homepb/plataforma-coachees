@@ -1,6 +1,6 @@
 // Telas e ações do coach: Hoje · Minhas pessoas · Encontros em grupo · O que eu ensino.
 
-const STATUS = { ok: ['ok', 'Em dia'], atencao: ['warn', 'Atenção'], parado: ['bad', 'Parado'], novo: ['ouro', 'Novo'], renovar: ['warn', 'Renovação'], vencido: ['bad', 'Encerrado'] };
+const STATUS = { parada: ['warn', 'Parada'], ok: ['ok', 'Em dia'], atencao: ['warn', 'Atenção'], parado: ['bad', 'Parado'], novo: ['ouro', 'Novo'], renovar: ['warn', 'Renovação'], vencido: ['bad', 'Encerrado'] };
 const chipSt = st => `<span class="chip ${STATUS[st][0]}"><span class="p"></span>${STATUS[st][1]}</span>`;
 const quando = d => { const n = R.dias(d, hoje()); return n <= 0 ? 'hoje' : n === 1 ? 'ontem' : `há ${n} dias`; };
 const tituloItem = id => (C.L.find(i => i.id === id) || {}).titulo || id;
@@ -68,9 +68,10 @@ VIEWS.coach.painel = () => {
   </div>
   <div class="grade g-21">
     <div class="card"><h3>Precisam de você</h3>
-      <p class="mu" style="font-size:12.5px;margin:-4px 0 6px">Montado automaticamente: pedidos de sessão, ações atrasadas, dias sem acesso e renovação próxima.</p><div class="lista">
+      <p class="mu" style="font-size:12.5px;margin:-4px 0 6px">Montado automaticamente: pedidos de sessão, ações atrasadas, paradas pendentes, dias sem acesso e renovação próxima.</p><div class="lista">
       ${prec.map(x => { const c = daCarteira(x.coacheeId); if (!c) return ''; return x.tipo === 'pedido'
         ? `<div class="item clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>Pediu uma sessão individual (${x.pedido.status === 'pago' ? 'pago' : 'aguardando pagamento'}): "${esc(x.pedido.motivo)}" · ${esc(x.pedido.horario)}</small></div><span class="chip ouro"><span class="p"></span>Pediu sessão</span></div>`
+        : x.tipo === 'parada' ? `<div class="item">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>${esc(x.nota)}${(c.D.avisos || {})['parada_' + x.parada.n] ? ' · lembrete enviado por e-mail' : ''}</small></div><span class="chip ${x.atrasada ? 'warn' : 'ouro'}"><span class="p"></span>${x.atrasada ? 'Parada pendente' : 'Parada aberta'}</span><button class="bt bt-linha bt-sm" data-acao="avisar-parada" data-c="${c.u.id}" data-n="${x.parada.n}">Avisar</button></div>`
         : `<div class="item clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>${esc(x.nota)}</small></div>${chipSt(x.st)}</div>`; }).join('') || '<div class="vazio">Ninguém precisando de atenção agora.</div>'}
     </div>
     <div class="sep"></div>
@@ -574,3 +575,35 @@ FORMS['form-meus'] = async () => {
   await col('coaches').salvar(S.u.id, { ...d, atualizadoEm: hoje() }); C.perfilCoach = { ...(C.perfilCoach || {}), ...d };
   toast('Ajustes salvos. Já valem para os seus coachees.'); render();
 };
+
+
+/* ===================== Paradas: lembrete ao coachee ===================== */
+// Texto do lembrete da parada (e-mail automático ou mensagem manual pelo WhatsApp).
+function textoParada(u, pa) {
+  const nome = primeiroNome(u.nome); const link = `${location.origin}${location.pathname}`;
+  return { assunto: `${nome}, sua Parada ${pa.n} está aberta`,
+    mensagem: `Oi, ${nome}! Chegou a hora da sua Parada ${pa.n} (${pa.n * 3} meses), um momento para olhar para trás e ver o quanto você já andou. `
+      + `Na plataforma, refaça os seus assessments e responda às perguntas de reflexão${pa.areas ? ', e dê de novo a nota para as 12 áreas da vida' : ''}. Prazo: ${br(pa.data)}. ${link}` };
+}
+ACOES['avisar-parada'] = t => {
+  const c = daCarteira(t.dataset.c); const pa = R.paradas(c.u, c.D, hoje()).find(p => p.n === +t.dataset.n);
+  const { assunto, mensagem } = textoParada(c.u, pa); avisar([c.u], assunto, mensagem);
+};
+// Ao abrir a plataforma, o coach envia sozinho (EmailJS) um e-mail para cada coachee cuja parada abriu e ainda não foi avisada.
+// Fica registrado em "avisos" para não repetir. Sem EmailJS configurado, nada é enviado (o coach usa o botão Avisar).
+async function avisarParadasAbertas() {
+  const ej = C.cfg.emailjs || {}; if (!ej.servico || !ej.chave || !ej.modeloAviso) return 0;
+  const h = hoje(); let n = 0;
+  for (const c of C.carteira || []) {
+    if (!c.u.email || !c.u.inicio) continue;
+    const pa = R.paradaAberta(R.paradas(c.u, c.D, h)); if (!pa) continue;
+    const chave = 'parada_' + pa.n; c.D.avisos = c.D.avisos || {}; if (c.D.avisos[chave]) continue;
+    const { assunto, mensagem } = textoParada(c.u, pa);
+    const ok = await Dados.enviarEmail(ej, ej.modeloAviso, { to_email: c.u.email, to_name: primeiroNome(c.u.nome), assunto, mensagem }).catch(() => false);
+    if (!ok) continue;
+    const doc = { coacheeId: c.u.id, tipo: 'parada', n: pa.n, data: h, por: S.u.id };
+    await col('avisos').salvar(`${c.u.id}_${chave}`, doc).catch(() => {}); c.D.avisos[chave] = doc; n++;
+  }
+  if (n) { toast(`Lembrete da parada enviado por e-mail para ${plural(n, 'coachee', 'coachees')}.`); render(); }
+  return n;
+}

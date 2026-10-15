@@ -201,6 +201,14 @@ test('ajustes de cada coach: só o próprio coach altera; todos leem', async () 
   await assertFails(db('ana').doc('coaches/ana').set({ nome: 'x' }));
 });
 
+test('lembretes: o coach registra o aviso da parada; o coachee só lê', async () => {
+  const av = { coacheeId: 'ana', tipo: 'parada', n: 1, data: '2026-11-10' };
+  await assertSucceeds(db('vini').doc('avisos/ana_parada_1').set(av));
+  await assertSucceeds(db('ana').doc('avisos/ana_parada_1').get());
+  await assertFails(db('ana').doc('avisos/ana_parada_2').set({ ...av, n: 2 }));
+  await assertFails(db('mari').doc('avisos/ana_parada_3').set({ ...av, n: 3 }));
+});
+
 test('coach desativado perde o acesso', async () => {
   await env.withSecurityRulesDisabled(ctx => ctx.firestore().doc('usuarios/mari').update({ ativo: false }));
   await assertFails(doCoachee('mari', 'bruno'));

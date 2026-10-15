@@ -146,6 +146,22 @@ function perguntaSemana() {
       : `<form id="form-pergunta" data-id="${esc(q.id)}"><textarea class="campo" id="pergunta-resp" rows="3" placeholder="Escreva com calma. Só o seu coach lê." aria-label="Sua resposta"></textarea><button class="bt bt-linha bt-sm" type="submit">Enviar ao meu coach</button></form>`}</div>`;
 }
 
+/* ===================== Parada aberta (aviso no Hoje) ===================== */
+// Enquanto a parada estiver aberta e não registrada, o Hoje mostra o que fazer e até quando.
+function cartaoParadaHoje() {
+  const h = hoje(); const pa = R.paradaAberta(P()); if (!pa) return '';
+  const atrasada = h > pa.data; const D = C.D;
+  const assess = Object.keys(CONTEUDO.ASSESS).map(k => { const u = R.historico(D, k).pop(); return { k, feito: !!(u && u.data >= pa.abre) }; });
+  const itens = [...assess.map(a => [a.feito, `Refazer ${CONTEUDO.ASSESS[a.k].nome}`]), [false, 'Responder às 4 perguntas de reflexão'], ...(pa.areas ? [[false, 'Dar a nota das 12 áreas da vida']] : [])];
+  return `<section class="card parada-hoje ${atrasada ? 'atrasada' : ''}">
+    <div class="ph-cab"><span class="ph-ic" aria-hidden="true">${pa.n}</span><div><div class="pp-rot">${atrasada ? 'Parada pendente' : 'Sua parada está aberta'}</div>
+      <h2>Parada ${pa.n} · ${pa.n * 3} meses</h2><div class="pp-sub">${atrasada ? `Era até ${br(pa.data)}. Ainda dá tempo: leva uns 20 minutos.` : `Faça até ${br(pa.data)} · leva uns 20 minutos`}</div></div></div>
+    <ul class="ph-lista">${itens.map(([ok, t]) => `<li class="${ok ? 'ok' : ''}">${ok ? '✓' : '○'} ${t}</li>`).join('')}</ul>
+    <div class="ph-bts"><button class="bt bt-ouro" data-acao="ir-parada">Fazer minha parada</button><button class="bt bt-linha" data-ir="quem">Refazer os assessments</button></div>
+  </section>`;
+}
+ACOES['ir-parada'] = () => { ir('evolucao'); const f = document.getElementById('form-parada'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+
 /* ===================== Hoje ===================== */
 VIEWS.coachee.painel = () => {
   const L = C.L, D = C.D, h = hoje(); const prox = R.proximo(L, D); const m = metaAtual();
@@ -162,6 +178,7 @@ VIEWS.coachee.painel = () => {
     <div><div class="sobre">${hojeExtenso()}</div><h1>${saudacao}, ${esc(primeiroNome(S.u.nome))}</h1></div></div>
     <button class="link-discreto ritmo" data-ir="evolucao"><span class="chama num">${dias}</span>${dias === 1 ? 'dia' : 'dias'} seguido${dias === 1 ? '' : 's'} em movimento</button></div>
 
+  ${cartaoParadaHoje()}
   ${prox ? `<section class="card proximo-passo">
     <div class="pp-texto"><div class="pp-rot">Seu próximo passo</div>
       <h2>${esc(prox.titulo)}</h2>

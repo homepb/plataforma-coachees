@@ -182,6 +182,14 @@ const Regras = (() => {
     carteira.forEach(c => {
       const s = situacao(c.u, c.D, h);
       if (ORDEM_ATENCAO[s.st]) lista.push({ tipo: 'situacao', ordem: ORDEM_ATENCAO[s.st], coacheeId: c.u.id, ...s });
+      // Parada aberta e ainda não registrada: logo depois de "Atenção" quando já passou da data; senão, depois de "Renovação".
+      if (s.st === 'vencido' || !c.u.inicio) return;
+      const pa = paradaAberta(paradas(c.u, c.D, h));
+      if (pa) {
+        const atrasada = h > pa.data; const br = d => d.slice(8, 10) + '/' + d.slice(5, 7);
+        lista.push({ tipo: 'parada', ordem: atrasada ? 1.5 : 3.5, coacheeId: c.u.id, st: 'parada', parada: pa, atrasada,
+          nota: atrasada ? `Parada ${pa.n} pendente desde ${br(pa.data)}` : `Parada ${pa.n} aberta · prazo ${br(pa.data)}` });
+      }
     });
     return lista.sort((a, b) => a.ordem - b.ordem);
   }

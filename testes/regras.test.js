@@ -99,7 +99,7 @@ test('situação e "Precisam de você" na ordem certa (RN-08)', () => {
     { u: { ...base, id: 'p', ultimoAcesso: '2026-09-01' }, D },
     { u: { ...base, id: 'a' }, D: comAtraso }
   ], [{ coacheeId: 'z', status: 'pago' }], h);
-  assert.deepEqual(lista.map(x => x.coacheeId), ['z', 'a', 'p', 'r']);
+  assert.deepEqual(lista.filter(x => x.tipo !== 'parada').map(x => x.coacheeId), ['z', 'a', 'p', 'r']);
 });
 
 test('resultado do questionário: média por dimensão em 0–100%', () => {
@@ -126,4 +126,13 @@ test('dias seguidos em movimento', () => {
   assert.equal(R.diasSeguidos(L, D, u, '2026-10-15'), 0);
   const D1 = vazio(); D1.vitorias.push({ data: '2026-10-13', texto: 'x' });
   assert.equal(R.diasSeguidos(L, D1, u, '2026-10-13'), 1);
+});
+
+test('parada aberta e não registrada entra em "Precisam de você"', () => {
+  const h = '2026-11-10'; const u = { id: 'p', inicio: '2026-08-12', fim: R.fimDoAcesso('2026-08-12'), ultimoAcesso: h };
+  const D = vazio(); const L1 = R.precisam([{ u, D }], [], h);
+  const it = L1.find(x => x.tipo === 'parada'); assert.ok(it); assert.equal(it.parada.n, 1); assert.equal(it.atrasada, false);
+  const it2 = R.precisam([{ u, D }], [], '2026-11-20').find(x => x.tipo === 'parada'); assert.equal(it2.atrasada, true);
+  D.paradas[1] = { n: 1, data: '2026-11-10' };
+  assert.equal(R.precisam([{ u, D }], [], h).some(x => x.tipo === 'parada'), false);
 });

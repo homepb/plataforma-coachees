@@ -198,8 +198,8 @@ const opcional = (promessa, padrao = []) => promessa.catch(e => { console.warn('
 
 async function carregarCoachee(id) {
   const q = n => col(n).listar('coacheeId', id);
-  const [progresso, acoes, rotinas, assessments, vitorias, paradas, comentarios, respostas, insig, relatorios] = await Promise.all([
-    q('progresso'), q('acoes'), q('rotinas'), q('assessments'), q('vitorias'), q('paradas'), q('comentarios'), q('respostas'), col('insignias').obter(id), opcional(q('relatorios'))]);
+  const [progresso, acoes, rotinas, assessments, vitorias, paradas, comentarios, respostas, insig, relatorios, avisos] = await Promise.all([
+    q('progresso'), q('acoes'), q('rotinas'), q('assessments'), q('vitorias'), q('paradas'), q('comentarios'), q('respostas'), col('insignias').obter(id), opcional(q('relatorios')), opcional(q('avisos'))]);
   return {
     progresso: Object.fromEntries(progresso.map(p => [p.itemId, p])),
     acoes: acoes.sort((a, b) => (a.ok - b.ok) || (a.prazo || '').localeCompare(b.prazo || '')),
@@ -209,6 +209,8 @@ async function carregarCoachee(id) {
     respostas: Object.fromEntries(respostas.map(r => [r.perguntaId, r])),
     insignias: insig || { ganhas: {} },
     // PDFs dos resultados dos assessments, enviados pelo coach (o mais recente primeiro).
+    // Lembretes já enviados ao coachee (ex.: parada_1), para não repetir o e-mail.
+    avisos: Object.fromEntries(avisos.map(a => [`${a.tipo}_${a.n}`, a])),
     relatorios: relatorios.sort((a, b) => (b.criado || b.data || '').localeCompare(a.criado || a.data || ''))
   };
 }
@@ -229,7 +231,8 @@ async function carregar() {
     C.horarios = u.coachId ? await opcional(col('horarios').listar('coachId', u.coachId)) : [];
     C.perfilCoach = u.coachId ? await opcional(col('coaches').obter(u.coachId), null) : null;
   }
-  if (modo === 'coach') { await carregarCarteira(); C.horarios = await opcional(col('horarios').listar('coachId', u.id)); C.perfilCoach = await opcional(col('coaches').obter(u.id), null); }
+  if (modo === 'coach') { await carregarCarteira(); C.horarios = await opcional(col('horarios').listar('coachId', u.id)); C.perfilCoach = await opcional(col('coaches').obter(u.id), null);
+    setTimeout(() => avisarParadasAbertas().catch(e => console.warn('Lembrete da parada:', e && e.message)), 0); }
   if (modo === 'admin') {
     const [usuarios, vendas, pedidos] = await Promise.all([col('usuarios').listar(), col('vendas').listar(), col('pedidos').listar()]);
     C.usuarios = usuarios; C.vendas = vendas.sort(recente); C.pedidos = pedidos.sort(recente);
