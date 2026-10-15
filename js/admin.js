@@ -245,8 +245,8 @@ VIEWS.admin.entradas = () => {
     <div class="card kpi"><div class="v num">${C.vendas.filter(v => v.status === 'pendente').length + pedAbertos.length}</div><div class="l">aguardando pagamento</div></div>
     <div class="card kpi"><div class="v num">${C.vendas.filter(v => v.status === 'expirado').length}</div><div class="l">${C.vendas.filter(v => v.status === 'expirado').length === 1 ? 'pagamento expirado' : 'pagamentos expirados'} para retomar</div></div>
   </div>
-  ${pedAbertos.length ? `<div class="card ouro" style="margin-bottom:16px"><h3>Pedidos de sessão individual aguardando pagamento</h3><div class="lista">
-    ${pedAbertos.map(p => `<div class="item">${caixaData(p.data)}<div class="tx"><b>${esc(p.nome || nomeDe(p.coacheeId))}</b><small>"${esc(p.motivo)}" · ${esc(p.horario)}</small></div><button class="bt bt-ouro bt-sm" data-acao="confirmar-sessao" data-id="${p.id}">Confirmar pagamento</button><button class="bt bt-fantasma bt-sm" data-acao="cancelar-sessao" data-id="${p.id}">Cancelar</button></div>`).join('')}
+  ${pedAbertos.length ? `<div class="card ouro" style="margin-bottom:16px"><h3>Sessões individuais solicitadas · aguardando pagamento</h3><div class="lista">
+    ${pedAbertos.map(p => `<div class="item">${caixaData(p.data)}<div class="tx"><b>${esc(p.nome || nomeDe(p.coacheeId))}</b><small>"${esc(p.motivo)}" · ${esc(p.horario)}${p.whats ? ` · WhatsApp ${esc(p.whats)}` : ''}</small></div><button class="bt bt-ouro bt-sm" data-acao="confirmar-sessao" data-id="${p.id}">Confirmar pagamento</button><button class="bt bt-fantasma bt-sm" data-acao="cancelar-sessao" data-id="${p.id}">Cancelar</button></div>`).join('')}
   </div></div>` : ''}
   <div class="card" style="padding-top:6px"><div class="tabela-wrap"><table>
     <thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Forma</th><th>Valor</th><th>Pagamento</th><th></th></tr></thead>

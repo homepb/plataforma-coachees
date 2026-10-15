@@ -185,6 +185,7 @@ async function carregarConteudo() {
   // Liderança (contratada à parte): marcada aqui também para bancos instalados antes dessa regra.
   const tp = C.trilhas[CONTEUDO.TRILHA_A_PARTE];
   if (tp) { tp.aParte = true; tp.liberada = !!(S.u && S.u.lideranca); }
+  const t3 = C.trilhas[CONTEUDO.TRILHA_REQUER_ACAO]; if (t3) t3.requerAcao = true;
   C.L = Regras.lista(C.trilhas, C.itens);
   C.mensagens = mensagens.sort(recente); C.perguntas = perguntas.sort(recente);
   C.encontros = encontros.sort((a, b) => a.data.localeCompare(b.data));
@@ -254,7 +255,7 @@ const daCarteira = id => (C.carteira || []).find(c => c.u.id === id);
 
 /* ===================== Navegação e casca ===================== */
 const NAV = {
-  coachee: [['painel', 'Hoje'], ['jornada', 'Minha jornada'], ['quem', 'Quem eu sou'], ['evolucao', 'Minha evolução'], ['pratica', 'Na prática'], ['sessao', 'Sessão 1:1'], ['comunidade', 'Comunidade']],
+  coachee: [['painel', 'Hoje'], ['quem', 'Quem eu sou'], ['jornada', 'Minha jornada'], ['pratica', 'Na prática'], ['evolucao', 'Minha evolução'], ['sessao', 'Sessão 1:1'], ['comunidade', 'Comunidade']],
   coach: [['painel', 'Hoje'], ['pessoas', 'Minhas pessoas'], ['encontros', 'Encontros em grupo'], ['ensino', 'O que eu ensino'], ['agenda', 'Minha agenda'], ['certificado', 'Certificado'], ['meus', 'Meus ajustes']],
   admin: [['painel', 'Como estamos'], ['pessoas', 'Pessoas'], ['planos', 'Planos'], ['entradas', 'Novas entradas'], ['ajustes', 'Ajustes']]
 };
@@ -298,11 +299,13 @@ const celular = () => window.matchMedia(CELULAR).matches;
 window.matchMedia(CELULAR).addEventListener('change', () => { if (S.pronto && S.u) render(); });
 const PRINCIPAIS = { coachee: ['painel', 'jornada', 'pratica', 'comunidade'], coach: ['painel', 'pessoas', 'encontros', 'ensino'], admin: ['painel', 'pessoas', 'planos', 'entradas'] };
 const CURTO = { 'Minha jornada': 'Jornada', 'Na prática': 'Prática', 'Minhas pessoas': 'Pessoas', 'Encontros em grupo': 'Encontros', 'O que eu ensino': 'Ensino', 'Como estamos': 'Visão geral', 'Novas entradas': 'Entradas' };
+// Na prática fica com cadeado até o coachee chegar ao passo 8 da Trilha II.
+const navTrava = (papel, k) => papel === 'coachee' && k === 'pratica' && C.L && C.D && !Regras.praticaLiberada(C.L, C.D) ? `<span class="nav-trava" title="Abre no passo 8 da Trilha II">${LOCK}</span>` : '';
 const IC_MAIS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>';
 function navBaixo(papel, ativo, alertas) {
   const prin = PRINCIPAIS[papel]; const nav = NAV[papel].filter(([k]) => prin.includes(k));
   const noMais = !prin.includes(ativo);
-  return `<nav class="nav-baixo" aria-label="Menu principal">${nav.map(([k, l]) => `<button data-ir="${k}" ${ativo === k ? 'aria-current="page"' : ''}>${svg(k)}<span>${CURTO[l] || l}</span>${k === 'pratica' && alertas ? `<i class="cont num">${alertas}</i>` : ''}</button>`).join('')}
+  return `<nav class="nav-baixo" aria-label="Menu principal">${nav.map(([k, l]) => `<button data-ir="${k}" ${ativo === k ? 'aria-current="page"' : ''}>${svg(k)}<span>${CURTO[l] || l}</span>${navTrava(papel, k)}${k === 'pratica' && alertas ? `<i class="cont num">${alertas}</i>` : ''}</button>`).join('')}
     <button data-acao="menu-mais" ${noMais ? 'aria-current="page"' : ''} aria-haspopup="dialog">${IC_MAIS}<span>Mais</span></button></nav>`;
 }
 const NOME_MODO = { coachee: 'Coachee', coach: 'Coach', admin: 'Administrador' };
@@ -347,7 +350,7 @@ function render() {
     <aside class="lado">
       <div class="marca"><small>${esc(nomePrograma().split(' ').slice(0, -2).join(' ') || 'Programa de')}</small><b>${esc(nomePrograma().split(' ').slice(-2).join(' '))}</b></div>
       ${cel ? '' : `<nav class="nav" aria-label="Menu principal">
-        ${nav.map(([k, l]) => `<button data-ir="${k}" ${ativo === k ? 'aria-current="page"' : ''}>${svg(k)}${l}${k === 'pratica' && alertas ? `<span class="cont num">${alertas}</span>` : ''}</button>`).join('')}
+        ${nav.map(([k, l]) => `<button data-ir="${k}" ${ativo === k ? 'aria-current="page"' : ''}>${svg(k)}${l}${navTrava(papel, k)}${k === 'pratica' && alertas ? `<span class="cont num">${alertas}</span>` : ''}</button>`).join('')}
       </nav>`}
       ${papel === 'coachee' && !cel ? `<div class="atalhos">${linkGrupo()}</div>` : ''}
       ${cel ? `<div class="troca-cel">${botoesTroca('chip-troca')}</div>` : `<div class="eu">${av(S.u)}<div><b>${esc(S.u.nome)}</b><small>${PAPEL[papel]}</small>${botoesTroca('troca-eu')}</div><button data-acao="sair" title="Sair">Sair</button></div>`}

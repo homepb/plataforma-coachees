@@ -38,8 +38,13 @@ const Regras = (() => {
   const nucleo = L => L.filter(i => !i.t.aParte);
   const proximo = (L, D) => nucleo(L).find(i => !feito(D, i.id)) || null; // RN-02
   // RN-01: na trilha sequencial, um passo só abre quando os anteriores estão feitos.
+  // A Trilha III (requerAcao) só abre depois que o coachee cadastra pelo menos uma ação do plano.
+  const temAcao = (L, D) => (D.acoes || []).length > 0 || L.some(i => i.chave === 'plano' && feito(D, i.id));
   const acessivel = (L, D, item) => (!item.t.aParte || !!item.t.liberada)
+    && (!item.t.requerAcao || temAcao(L, D))
     && (!item.t.sequencial || L.filter(i => i.t.id === item.t.id && i.k < item.k).every(i => feito(D, i.id)));
+  // Na prática abre quando o coachee chega ao passo 8 (plano de ação) da Trilha II.
+  const praticaLiberada = (L, D) => { const p = L.find(i => i.chave === 'plano'); return !p || (D.acoes || []).length > 0 || acessivel(L, D, p); };
   function statusTrilha(L, D, tid) {
     const its = L.filter(i => i.t.id === tid);
     if (its.length && its.every(i => feito(D, i.id))) return 'feito';
@@ -197,7 +202,7 @@ const Regras = (() => {
     return lista.sort((a, b) => a.ordem - b.ordem);
   }
 
-  return { iso, hoje, somaDias, somaMeses, dias, segunda, fimDoAcesso, lista, nucleo, feito, proximo, acessivel, statusTrilha, pct,
+  return { iso, hoje, somaDias, somaMeses, dias, segunda, fimDoAcesso, lista, nucleo, feito, proximo, acessivel, temAcao, praticaLiberada, statusTrilha, pct,
     meta, areasInicio, atrasada, paradas, paradaAberta, proximaParada, historico, liberado, resultadoQuest,
     percurso, semanas, sequencia, semanaAtiva, diasSeguidos, insignias, situacao, precisam };
 })();

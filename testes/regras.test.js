@@ -25,8 +25,19 @@ test('Trilha II é passo a passo; as outras ficam abertas (RN-01)', () => {
   const D = vazio(); const it = id => L.find(i => i.id === id);
   assert.equal(R.acessivel(L, D, it('e1')), true);
   assert.equal(R.acessivel(L, D, it('e2')), false);
-  assert.equal(R.acessivel(L, D, it('a35')), true);
+  assert.equal(R.acessivel(L, D, it('a13')), true);
   feito(D, ['e1']); assert.equal(R.acessivel(L, D, it('e2')), true);
+});
+
+test('Trilha III só abre com pelo menos 1 ação; Na prática abre no passo 8', () => {
+  const D = vazio(); const it = id => L.find(i => i.id === id);
+  assert.equal(R.acessivel(L, D, it('a35')), false);
+  assert.equal(R.praticaLiberada(L, D), false);
+  feito(D, ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7']);
+  assert.equal(R.praticaLiberada(L, D), true, 'chegou ao passo 8');
+  assert.equal(R.acessivel(L, D, it('a35')), false, 'ainda sem ação');
+  D.acoes.push({ id: 'x', oque: 'Delegar', prazo: '2026-10-16', hora: '09:00' });
+  assert.equal(R.acessivel(L, D, it('a35')), true);
 });
 
 test('meta vem do passo 3 (RN-03)', () => {

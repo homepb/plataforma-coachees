@@ -74,6 +74,14 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coachee: ${v} abre`);
       if (nome === 'celular') ok(!(await transborda()), `coachee: ${v} sem rolagem lateral`);
     }
+    ok(await p.evaluate(() => [...document.querySelectorAll(celular() ? '.nav-baixo [data-ir]' : '.nav [data-ir]')].map(b => b.dataset.ir).join() === (celular() ? 'painel,jornada,pratica,comunidade' : 'painel,quem,jornada,pratica,evolucao,sessao,comunidade')), 'menu na ordem pedida');
+    await ir('quem'); ok((await texto()).includes('Sua análise SWOT') && await p.$('.swot-quem'), 'Quem eu sou mostra a SWOT');
+    // Sem ações e antes do passo 8: Na prática bloqueado e Trilha III fechada.
+    await p.evaluate(() => { window._acoes = C.D.acoes; C.D.acoes = []; render(); });
+    await ir('pratica'); ok((await texto()).includes('Na prática abre no passo 8') && !(await p.$('[data-acao="nova-acao"]')), 'Na prática bloqueado antes do passo 8');
+    if (nome === 'computador') ok(await p.$('.nav [data-ir="pratica"] .nav-trava'), 'cadeado no menu Na prática');
+    await ir('jornada'); ok((await texto()).includes('abre com o plano de ação') && await p.evaluate(() => !Regras.acessivel(C.L, C.D, C.L.find(i => i.id === 'a31'))), 'Trilha III fechada sem nenhuma ação');
+    await p.evaluate(() => { C.D.acoes = window._acoes; render(); });
     await ir('jornada'); await foto('coachee-jornada');
     if (nome === 'computador') {
       const avatar = await p.evaluate(() => { const w = document.querySelector('.mapa-wrap').getBoundingClientRect(); const a = document.querySelector('.eu-mapa').getBoundingClientRect(); return a.top >= w.top; });
@@ -90,11 +98,17 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await ir('item', 'a31'); await p.fill('#resp', 'Manter a rotina às sextas.'); await p.click('#form-exercicio button'); await p.waitForTimeout(200);
     ok(await p.evaluate(() => C.D.progresso.a31.respostas[0] === 'Manter a rotina às sextas.'), 'resposta do exercício salva');
     await ir('pratica'); await p.click('[data-acao="nova-acao"]'); await p.fill('#na-o', 'Testar a nova pauta da reunião');
-    ok(await p.inputValue('#na-p') === '', 'nova ação começa sem prazo');
-    await modalSalvar(); ok(await p.$('#modal[open]') && (await p.textContent('#toast')).includes('Defina até quando'), 'nova ação sem prazo pede o prazo');
-    await p.click('#form-modal [data-acao="prazo-rapido"][data-d="15"]');
-    ok(await p.inputValue('#na-p') === await p.evaluate(() => Regras.somaDias(hoje(), 15)), 'atalho "15 dias" preenche o prazo');
-    await modalSalvar();
+    ok(await p.inputValue('#na-p') === '' && await p.$('#na-p-hora'), 'nova ação começa sem dia e tem campo de hora');
+    await modalSalvar(); ok(await p.$('#modal[open]') && (await p.textContent('#toast')).includes('Escolha o dia'), 'nova ação sem dia pede o dia');
+    await p.fill('#na-p', await p.evaluate(() => Regras.somaDias(limiteAcao(), 1))); await p.fill('#na-p-hora', '09:30');
+    await modalSalvar(); ok(await p.$('#modal[open]') && await p.evaluate(() => !C.D.acoes.some(a => a.oque === 'Testar a nova pauta da reunião')), 'dia depois da semana seguinte é recusado');
+    await p.fill('#na-p-hora', '');
+    await p.click('#form-modal [data-acao="prazo-rapido"][data-d="1"]');
+    ok(await p.inputValue('#na-p') === await p.evaluate(() => Regras.somaDias(hoje(), 1)), 'atalho "Amanhã" preenche o dia');
+    await modalSalvar(); ok(await p.$('#modal[open]') && (await p.textContent('#toast')).includes('Escolha a hora'), 'sem hora, pede a hora');
+    await p.fill('#na-p-hora', '09:30'); await modalSalvar();
+    ok(await p.evaluate(() => C.D.acoes.some(a => a.oque === 'Testar a nova pauta da reunião' && a.hora === '09:30')), 'ação salva com dia e hora');
+    ok(await p.evaluate(() => [...document.querySelectorAll('.palco thead th')].map(t => t.textContent).join('|').includes('O que fazer|Quem faz|Quando faz|Hora')), 'tabela: O que fazer, Quem faz, Quando faz, Hora');
     ok((await texto()).includes('Testar a nova pauta da reunião'), 'nova ação aparece no plano');
     const n0 = await p.evaluate(() => C.D.acoes.filter(a => a.ok).length);
     await p.click('[data-muda="acao"]:not(:checked)'); await p.waitForTimeout(250);
@@ -119,10 +133,18 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await p.click('.sessao-faixa [data-ir="sessao"]'); await p.waitForTimeout(200);
     ok(await p.$$eval('.agenda-dia .hora', b => b.length) >= 3, 'Sessão 1:1 mostra a agenda com horários livres');
     const hid = await p.$eval('.agenda-dia .hora', b => b.dataset.id); await p.click(`.hora[data-id="${hid}"]`); await p.waitForTimeout(150);
-    await p.fill('#ss-m', 'Preparar a conversa com a diretoria'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
-    ok(await p.evaluate(h => C.horarios.find(x => x.id === h).status === 'reservado' && C.pedidos[0].horarioId === h, hid) && !(await p.$(`.hora[data-id="${hid}"]`)), 'coachee reserva o horário (sai da lista de livres)');
-    // Segunda reserva: as duas sessões continuam aparecendo.
+    ok((await p.textContent('#form-sessao button[type=submit]')).includes('Solicitar horário'), 'botão "Solicitar horário"');
+    await p.evaluate(() => { C.perfilCoach = { ...(C.perfilCoach || {}), whatsappNumero: '(11) 99999-8888' }; });
+    await p.fill('#ss-m', 'Preparar a conversa com a diretoria'); await p.fill('#ss-w', '');
+    await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(200);
+    ok((await p.textContent('#toast')).includes('WhatsApp com DDD'), 'solicitação pede o WhatsApp do coachee');
+    await p.fill('#ss-w', '11 98888-7777'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
+    ok(await p.$('#modal[open] a[href^="https://wa.me/5511999998888?text="]') && (await p.textContent('#modal')).includes('vai entrar em contato'), 'solicitação enviada: aviso ao coach no WhatsApp');
+    await p.click('#modal [data-fechar]');
+    ok(await p.evaluate(h => C.horarios.find(x => x.id === h).status === 'reservado' && C.pedidos[0].horarioId === h && C.pedidos[0].whats === '11 98888-7777', hid) && !(await p.$(`.hora[data-id="${hid}"]`)), 'coachee solicita o horário (sai da lista de livres)');
+    // Segunda solicitação: as duas sessões continuam aparecendo.
     await p.click('.agenda-dia .hora'); await p.fill('#ss-m', 'Revisar o plano de ação'); await p.click('#form-sessao button[type=submit]'); await p.waitForTimeout(300);
+    await p.click('#modal [data-fechar]');
     ok(await p.$$eval('.minhas-sessoes .sessao-minha', c => c.length) === 2 && (await texto()).includes('Preparar a conversa com a diretoria') && (await texto()).includes('Revisar o plano de ação'), 'duas sessões reservadas aparecem juntas');
     await p.evaluate(() => { const x = C.pedidos[0]; x._st = x.status; x.status = 'agendado'; x.link = 'https://meet.google.com/abc-defg-hij'; render(); });
     ok(await p.$('.sm-acoes a[href="https://meet.google.com/abc-defg-hij"]') && await p.$('.sm-acoes a[href^="https://calendar.google.com/calendar/render"]'), 'sessão confirmada mostra Entrar na sessão e Adicionar à agenda');
@@ -133,7 +155,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     // ---------- coach ----------
     await entrar('vinicius@demo.com');
     ok((await texto()).includes('pessoas em acompanhamento'), 'coach entra e vê o Hoje');
-    ok((await texto()).includes('Pediu uma sessão individual'), 'pedido de sessão aparece em Precisam de você');
+    ok((await texto()).includes('Solicitou uma sessão individual'), 'pedido de sessão aparece em Precisam de você');
     await foto('coach-hoje');
     for (const v of ['painel', 'pessoas', 'encontros', 'ensino']) {
       await ir(v); ok(!(await texto()).includes('Não foi possível abrir'), `coach: ${v} abre`);
@@ -169,7 +191,7 @@ const ok = (cond, msg) => { if (!cond) { falhas++; console.log('  ✗ ' + msg); 
     await ir('meus'); await p.fill('#mc-wa', 'https://chat.whatsapp.com/grupoVinicius'); await p.fill('#mc-preco', '450'); await p.fill('#mc-apres', 'Coach de carreira há 12 anos.');
     await p.click('#form-meus button[type=submit]'); await p.waitForTimeout(250);
     ok(await p.evaluate(() => Dados.col('coaches').obter('vinicius').then(c => c.whatsapp === 'https://chat.whatsapp.com/grupoVinicius' && c.precoSessao === '450')), 'coach salva os próprios ajustes (grupo e preço da sessão)');
-    await ir('agenda'); ok((await texto()).includes('reservado') && (await texto()).includes('Preparar a conversa com a diretoria'), 'coach vê na agenda o horário reservado e o assunto');
+    await ir('agenda'); ok((await texto()).includes('solicitada · entre em contato') && !!(await p.$('a[href^="https://wa.me/5511988887777"]')) && (await texto()).includes('Preparar a conversa com a diretoria'), 'coach vê na agenda o horário solicitado, o assunto e o WhatsApp do coachee');
     const antes = await p.evaluate(() => C.horarios.length);
     await p.fill('#hr-h', '9h, 15:30'); await p.selectOption('#hr-r', '2'); await p.click('#form-horario button[type=submit]'); await p.waitForTimeout(300);
     ok(await p.evaluate(n => C.horarios.length === n + 4 && C.horarios.some(x => x.hora === '09:00') && C.horarios.some(x => x.hora === '15:30'), antes), 'coach abre horários repetindo por semanas');

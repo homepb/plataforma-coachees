@@ -379,7 +379,8 @@ dialog::backdrop{background:rgba(0,0,0,.65)}
 .ordem button:disabled{opacity:.3;cursor:default}
 .linha-acao{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) 150px 30px;gap:8px;align-items:start}
 .linha-acao .campo{margin-bottom:8px}
-.linha-acao{grid-template-columns:minmax(0,2fr) minmax(0,1fr) 190px 30px}
+.linha-acao{grid-template-columns:minmax(0,2fr) minmax(0,1fr) 250px 30px}
+.quando-linha{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:6px}
 .prazo-grupo .campo{margin-bottom:6px}
 .prazo-rapido{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
 .prazo-rapido button{font:inherit;font-size:12px;font-weight:600;color:var(--gold-2);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer;min-height:28px}
@@ -643,3 +644,9 @@ button.hora:hover{border-color:var(--gold)}
 .ph-lista li{color:var(--ivory)}.ph-lista li.ok{color:var(--ok);text-decoration:line-through;text-decoration-color:rgba(141,191,149,.5)}
 .ph-bts{display:flex;gap:10px;flex-wrap:wrap}
 @media (max-width:640px){.ph-lista{grid-template-columns:1fr}.parada-hoje h2{font-size:24px}.ph-bts .bt-ouro{flex:1}}
+/* Cadeado no menu (Na prática antes do passo 8) */
+.nav-trava{display:inline-flex;margin-left:auto;opacity:.75}
+.nav button .nav-trava svg,.nav-baixo .nav-trava svg{width:11px;height:11px;stroke-width:2.4;display:block}
+.nav-baixo .nav-trava{position:absolute;top:6px;left:calc(50% + 8px);margin:0}
+.bloqueio-pratica{max-width:640px}
+.bloqueio-pratica h3{margin-top:10px}

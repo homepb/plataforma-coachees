@@ -14,7 +14,7 @@ const CONTEUDO = (() => {
   const trilhas = {
     t1: { n: 'I', ordem: 1, titulo: 'Autoconhecimento', descricao: 'Quem você é hoje: seu perfil DISC, sua inteligência emocional e o que te move na carreira.', assessments: true },
     t2: { n: 'II', ordem: 2, titulo: 'Planejamento estratégico', descricao: 'Os 8 passos da jornada, do raio-x da sua vida ao plano de ação. Cada passo libera o próximo.', sequencial: true },
-    t3: { n: 'III', ordem: 3, titulo: 'Desenvolvimento de competências comportamentais', descricao: 'As competências que sustentam o plano: disciplina, foco, gestão do tempo e comunicação.' },
+    t3: { n: 'III', ordem: 3, titulo: 'Desenvolvimento de competências comportamentais', descricao: 'As competências que sustentam o plano: disciplina, foco, gestão do tempo e comunicação.', requerAcao: true },
     t4: { n: 'IV', ordem: 4, titulo: 'Liderança', descricao: 'Aulas dadas pelo seu coach sobre liderar pessoas, delegar e formar a equipe.', coach: true, aParte: true }
   };
 
@@ -146,8 +146,10 @@ const CONTEUDO = (() => {
 
   // Trilha contratada à parte (Liderança): não conta para o certificado e só abre para quem a contratou.
   const TRILHA_A_PARTE = 't4';
+  // Trilha que só abre depois da primeira ação do plano (passo 8 da Trilha II).
+  const TRILHA_REQUER_ACAO = 't3';
 
-  return { TRILHA_A_PARTE, AREAS, trilhas, itens, QUEST, ASSESS, DISC, PERGUNTAS_PARADA, TRILHA_FEITA, TERMOS };
+  return { TRILHA_A_PARTE, TRILHA_REQUER_ACAO, AREAS, trilhas, itens, QUEST, ASSESS, DISC, PERGUNTAS_PARADA, TRILHA_FEITA, TERMOS };
 })();
 
 if (typeof module !== 'undefined') module.exports = CONTEUDO;

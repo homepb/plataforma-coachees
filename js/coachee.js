@@ -82,6 +82,9 @@ async function marcarOuvida(msgId) {
 // No celular, a jornada vira uma linha vertical: uma trilha abaixo da outra; a atual mostra o passo anterior, o atual e o próximo.
 // Trilha de Liderança: contratada à parte, aparece depois do certificado, bloqueada para quem não contratou.
 const trancada = t => !!(t.aParte && !t.liberada);
+// Trilha III: abre depois da primeira ação do plano (passo 8 da Trilha II).
+const esperaAcao = t => !!(t.requerAcao && !R.temAcao(C.L, C.D));
+const AVISO_ACAO = 'Abre quando você cadastrar a primeira ação do plano (passo 8 da Trilha II)';
 const trilhasOrdem = () => Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
 function mapaVertical() {
   const L = C.L, D = C.D; const a = R.proximo(L, D); const N = R.nucleo(L); const feitos = N.filter(i => R.feito(D, i.id)).length;
@@ -91,7 +94,7 @@ function mapaVertical() {
   const linhas = trilhasOrdem().filter(t => !t.aParte).map(t => {
     const its = L.filter(i => i.t.id === t.id); if (!its.length) return ''; const f = its.filter(i => R.feito(D, i.id)).length;
     const st = R.statusTrilha(L, D, t.id); const aqui = a && a.t.id === t.id;
-    const estado = st === 'feito' ? `<span class="ok-tx">Concluída · ${f} de ${its.length}</span>` : aqui ? `<span class="ouro-tx">Você está aqui · ${f} de ${its.length}</span>` : `<span class="mu">${t.sequencial ? 'Passo a passo' : 'Aberta'} · ${f} de ${its.length}</span>`;
+    const estado = st === 'feito' ? `<span class="ok-tx">Concluída · ${f} de ${its.length}</span>` : aqui ? `<span class="ouro-tx">Você está aqui · ${f} de ${its.length}</span>` : esperaAcao(t) ? `<span class="mu">${LOCK} ${AVISO_ACAO}</span>` : `<span class="mu">${t.sequencial ? 'Passo a passo' : 'Aberta'} · ${f} de ${its.length}</span>`;
     let detalhe = '';
     if (aqui) {
       const k = its.findIndex(i => i.id === a.id); const janela = its.slice(Math.max(0, k - 1), k + 2);
@@ -118,7 +121,7 @@ function mapa() {
         return `<div class="seg ${st}" style="flex:${its.length} 1 0">
           <div class="trilho" style="--p:${st === 'feito' ? 100 : Math.round((f + (st === 'atual' ? .5 : 0)) / its.length * 100)}%">${its.map(it => { const aqui = a && a.id === it.id;
             return `<span class="pt ${R.feito(D, it.id) ? 'ok' : aqui ? 'agora' : ''}">${aqui ? `<span class="eu-mapa">${av(S.u)}</span>` : ''}</span>`; }).join('')}</div>
-          <div class="rot"><b>Trilha ${esc(t.n)}</b><small>${esc(t.titulo)}</small></div></div>`; }).join('')}
+          <div class="rot"><b>${esperaAcao(t) ? LOCK + ' ' : ''}Trilha ${esc(t.n)}</b><small>${esc(t.titulo)}</small></div></div>`; }).join('')}
       <div class="seg-fim"><div class="trilho"><span class="pt fim ${a ? '' : 'ok'}">★</span></div><div class="rot"><b>Certificado</b></div></div>
       ${extras}
     </div></div>
@@ -194,9 +197,9 @@ VIEWS.coachee.painel = () => {
   <div class="grade g2" style="margin-bottom:16px;align-items:start">
     <div class="card"><h3>Para fazer esta semana <button class="link-discreto acao" data-ir="pratica">Na prática</button></h3>
       <div class="lista">
-        ${pend.map(a => `<div class="item"><input type="checkbox" class="ck" data-muda="acao" data-id="${a.id}" aria-label="Concluir: ${esc(a.oque)}"><div class="tx"><b>${esc(a.oque)}</b><small>${esc(a.quem)} · até ${brc(a.prazo)}</small></div>${R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : ''}</div>`).join('')}
+        ${pend.map(a => `<div class="item"><input type="checkbox" class="ck" data-muda="acao" data-id="${a.id}" aria-label="Concluir: ${esc(a.oque)}"><div class="tx"><b>${esc(a.oque)}</b><small>${esc(a.quem)} · ${brc(a.prazo)}${a.hora ? ` às ${a.hora}` : ''}</small></div>${R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : ''}</div>`).join('')}
         ${diarias.map(r => { const ok = (r.marcas || []).includes(h); return `<div class="item"><input type="checkbox" class="ck" data-muda="rotina" data-id="${r.id}" data-dia="${h}" ${ok ? 'checked' : ''} aria-label="Rotina: ${esc(r.titulo)}"><div class="tx"><b class="${ok ? 'feita' : ''}">${esc(r.titulo)}</b><small>Rotina diária</small></div></div>`; }).join('')}
-        ${!pend.length && !diarias.length ? '<div class="vazio">Nada pendente. Cadastre ações e rotinas em Na prática.</div>' : ''}
+        ${!pend.length && !diarias.length ? `<div class="vazio">${R.praticaLiberada(C.L, C.D) ? 'Nada pendente. Cadastre ações e rotinas em Na prática.' : 'Suas ações aparecem aqui depois do passo 8 da Trilha II (plano de ação), quando Na prática é liberado.'}</div>` : ''}
       </div></div>
     <div style="display:flex;flex-direction:column;gap:16px;min-width:0">${mensagemSemana()}${perguntaSemana()}</div>
   </div>
@@ -212,8 +215,8 @@ VIEWS.coachee.jornada = () => {
   const trilhas = Object.values(C.trilhas).sort((x, y) => x.ordem - y.ordem);
   const cartao = t => { const its = L.filter(i => i.t.id === t.id); const st = R.statusTrilha(L, D, t.id); const f = its.filter(i => R.feito(D, i.id)).length;
       return `<section class="card modulo ${a && a.t.id === t.id ? 'ouro' : ''}">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span class="n">TRILHA ${esc(t.n)}</span>${trancada(t) ? `<span class="chip">${LOCK} contratada à parte</span>` : st === 'feito' ? '<span class="chip ok">concluída</span>' : st === 'atual' ? '<span class="chip ouro">em andamento</span>' : t.sequencial ? '<span class="chip">passo a passo</span>' : '<span class="chip">aberta · ordem sugerida</span>'}</div>
-        <h4>${esc(t.titulo)}${t.sequencial ? ` <span class="chip ouro" style="vertical-align:middle">${its.length} passos da jornada</span>` : t.coach ? ' <span class="chip ouro" style="vertical-align:middle">aulas do coach</span>' : ''}</h4><div class="desc">${esc(t.descricao)}</div>${trancada(t) ? `<div class="aviso-aparte">${LOCK} A Trilha de Liderança é contratada à parte e não é necessária para o certificado. Para liberar, fale com ${esc(nomeCoach())}.</div>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span class="n">TRILHA ${esc(t.n)}</span>${trancada(t) ? `<span class="chip">${LOCK} contratada à parte</span>` : esperaAcao(t) ? `<span class="chip">${LOCK} abre com o plano de ação</span>` : st === 'feito' ? '<span class="chip ok">concluída</span>' : st === 'atual' ? '<span class="chip ouro">em andamento</span>' : t.sequencial ? '<span class="chip">passo a passo</span>' : '<span class="chip">aberta · ordem sugerida</span>'}</div>
+        <h4>${esc(t.titulo)}${t.sequencial ? ` <span class="chip ouro" style="vertical-align:middle">${its.length} passos da jornada</span>` : t.coach ? ' <span class="chip ouro" style="vertical-align:middle">aulas do coach</span>' : ''}</h4><div class="desc">${esc(t.descricao)}</div>${trancada(t) ? `<div class="aviso-aparte">${LOCK} A Trilha de Liderança é contratada à parte e não é necessária para o certificado. Para liberar, fale com ${esc(nomeCoach())}.</div>` : esperaAcao(t) ? `<div class="aviso-aparte">${LOCK} ${AVISO_ACAO}. Assim você já começa as competências com o plano em movimento.</div>` : ''}
         <div style="display:flex;align-items:center;gap:10px"><div class="barra" style="flex:1"><b style="width:${its.length ? f / its.length * 100 : 0}%"></b></div><span class="mu num" style="font-size:12px">${f}/${its.length}</span></div>
         <div>${its.length ? its.map(it => { const ok = R.feito(D, it.id); const ab = R.acessivel(L, D, it); const at = a && a.id === it.id;
           return `<div class="aula"><span class="st ${ok ? 'ok' : ''}">${ok ? '✓' : ab ? it.k + 1 : LOCK}</span>
@@ -230,7 +233,7 @@ VIEWS.coachee.jornada = () => {
     <div class="card ${a ? '' : 'ouro'}" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:200px"><div class="rotulinho ouro-tx">Certificado de conclusão</div><div class="mu">${a ? 'Liberado ao concluir as Trilhas I, II e III.' : 'Parabéns! Você concluiu o programa.'}</div></div>${a ? `<span class="cadeado">${LOCK} Bloqueado</span>` : '<button class="bt bt-ouro" data-ir="certificado">Ver certificado</button>'}</div>
     ${trilhas.filter(t => t.aParte).map(cartao).join('')}
     <div class="extra-sessao"><span>Quer aprofundar algum ponto da jornada com ${esc(nomeCoach())}?</span><button class="link-discreto" data-ir="sessao">Marcar sessão individual</button></div>
-    ${C.pedidos.length ? `<div class="extra-sessao"><span>Seu último pedido de sessão: ${({ aguardando: 'aguardando pagamento', pago: 'pago, aguardando o horário', agendado: 'agendado', cancelado: 'cancelado' })[C.pedidos[0].status] || esc(C.pedidos[0].status)} · ${brc(C.pedidos[0].data)}</span></div>` : ''}
+    ${C.pedidos.length ? `<div class="extra-sessao"><span>Seu último pedido de sessão: ${({ aguardando: 'solicitada, aguardando contato', pago: 'pago, aguardando o horário', agendado: 'agendado', cancelado: 'cancelado' })[C.pedidos[0].status] || esc(C.pedidos[0].status)} · ${brc(C.pedidos[0].data)}</span></div>` : ''}
   </div>`;
 };
 
@@ -280,14 +283,24 @@ function corpoPasso(it) {
     ${cs.map((c, k) => `<div><label class="rotulo" for="ps-${k}">${esc(c.rotulo)}</label>${exemplo(c, editar)}${campoHtml('ps-' + k, c, r[k], leitura)}</div>`).join('')}
     ${!cs.length ? '<p class="mu">O formulário deste passo será publicado em breve.</p>' : ''}${cs.length ? rodape : ''}</form>`;
 }
-// Prazo da ação: começa vazio e o coachee escolhe com um clique (Esta semana · 15 dias · 30 dias) ou no calendário.
-// Assim o prazo é sempre uma decisão dele, e não um padrão aceito sem pensar.
-const PRAZOS = [['semana', 'Esta semana', 'Semana'], ['15', '15 dias', '15 dias'], ['30', '30 dias', '30 dias']];
-function campoPrazo(id, valorAtual, rotuloAria, curto = false) {
-  return `<div class="prazo-grupo"><input class="campo" type="date" ${id ? `id="${id}"` : ''} ${rotuloAria ? `aria-label="${rotuloAria}"` : ''} value="${esc(valorAtual || '')}" min="${hoje()}">
-    <div class="prazo-rapido" role="group" aria-label="Prazos rápidos">${PRAZOS.map(([d, l, c]) => `<button type="button" data-acao="prazo-rapido" data-d="${d}" aria-label="Prazo: ${l}">${curto ? c : l}</button>`).join('')}<button type="button" data-acao="prazo-rapido" data-d="escolher">${curto ? 'Outra' : 'Escolher data'}</button></div></div>`;
+// Quando faz: o dia exato da ação, de hoje até o fim da semana seguinte, e a hora.
+// Começa vazio: o coachee escolhe com um clique (Hoje · Amanhã) ou no calendário.
+const limiteAcao = () => R.somaDias(R.segunda(hoje()), 13);
+const QUANDO = [['0', 'Hoje'], ['1', 'Amanhã']];
+function campoQuando(id, data, hora, rotuloAria, curto = false) {
+  return `<div class="prazo-grupo"><div class="quando-linha"><input class="campo q-data" type="date" ${id ? `id="${id}"` : ''} ${rotuloAria ? `aria-label="${rotuloAria}: quando faz"` : ''} value="${esc(data || '')}" min="${hoje()}" max="${limiteAcao()}">
+    <input class="campo q-hora" type="time" ${id ? `id="${id}-hora"` : ''} aria-label="${rotuloAria ? rotuloAria + ': ' : ''}hora" value="${esc(hora || '')}"></div>
+    <div class="prazo-rapido" role="group" aria-label="Atalhos de data">${QUANDO.map(([d, l]) => `<button type="button" data-acao="prazo-rapido" data-d="${d}">${l}</button>`).join('')}<button type="button" data-acao="prazo-rapido" data-d="escolher">${curto ? 'Outro dia' : 'Escolher o dia'}</button></div></div>`;
 }
-const linhaPlano = (k, l = {}) => `<div class="linha-acao" data-linha="${k}"><input class="campo" placeholder="O que muda" aria-label="Ação ${k + 1}: o que muda" value="${esc(l.oque || '')}"><input class="campo" placeholder="Quem faz" aria-label="Ação ${k + 1}: quem faz" value="${esc(l.quem || primeiroNome(S.u.nome))}">${campoPrazo('', l.prazo, `Ação ${k + 1}: até quando`, true)}<button type="button" class="x" data-acao="tirar-linha" aria-label="Remover ação ${k + 1}">×</button></div>`;
+// Valida dia e hora; numa ação já existente, um dia antigo que não mudou continua valendo.
+function erroQuando(data, hora, anterior) {
+  if (!data) return 'Escolha o dia em que você vai fazer.';
+  if (data !== anterior && (data < hoje() || data > limiteAcao())) return `Escolha um dia entre hoje e ${br(limiteAcao())} (no máximo a semana que vem).`;
+  if (!hora) return 'Escolha a hora em que você vai fazer.';
+  return '';
+}
+const quandoAcao = a => `${br(a.prazo)}${a.hora ? ` às ${a.hora}` : ''}`;
+const linhaPlano = (k, l = {}) => `<div class="linha-acao" data-linha="${k}"><input class="campo l-oque" placeholder="O que fazer" aria-label="Ação ${k + 1}: o que fazer" value="${esc(l.oque || '')}"><input class="campo l-quem" placeholder="Quem faz" aria-label="Ação ${k + 1}: quem faz" value="${esc(l.quem || primeiroNome(S.u.nome))}">${campoQuando('', l.prazo, l.hora, `Ação ${k + 1}`, true)}<button type="button" class="x" data-acao="tirar-linha" aria-label="Remover ação ${k + 1}">×</button></div>`;
 
 VIEWS.coachee.item = () => {
   const L = C.L, D = C.D; const i = L.findIndex(x => x.id === S.p); const it = L[i];
@@ -339,9 +352,7 @@ Object.assign(ACOES, {
   'prazo-rapido'(t) {
     const g = t.closest('.prazo-grupo'); const c = g.querySelector('input[type=date]');
     if (t.dataset.d === 'escolher') { c.focus(); try { c.showPicker(); } catch (e) {} return; }
-    // "Esta semana" vai até o domingo; se hoje já é domingo, vai até o próximo.
-    const h = hoje(); const dom = R.somaDias(R.segunda(h), 6);
-    c.value = t.dataset.d === 'semana' ? (dom > h ? dom : R.somaDias(dom, 7)) : R.somaDias(h, +t.dataset.d);
+    c.value = R.somaDias(hoje(), +t.dataset.d); const hr = g.querySelector('.q-hora'); if (hr && !hr.value) hr.focus();
     g.querySelectorAll('[data-acao="prazo-rapido"]').forEach(b => b.classList.toggle('ativo', b === t));
   },
   'editar-passo'(t) { S.editando = t.dataset.id; render(); },
@@ -372,10 +383,10 @@ FORMS['form-passo'] = async f => {
   }
   let novas = [];
   if (it.chave === 'plano' && !jaFeito) {
-    novas = [...f.querySelectorAll('.linha-acao')].map(l => { const [o, q, p] = l.querySelectorAll('input'); return { oque: o.value.trim(), quem: q.value.trim(), prazo: p.value }; }).filter(a => a.oque);
+    novas = [...f.querySelectorAll('.linha-acao')].map(l => ({ oque: l.querySelector('.l-oque').value.trim(), quem: l.querySelector('.l-quem').value.trim(), prazo: l.querySelector('.q-data').value, hora: l.querySelector('.q-hora').value })).filter(a => a.oque);
     if (!novas.length) { toast('Escreva pelo menos uma ação.'); return; }
     if (novas.some(a => !a.quem)) { toast('Cada ação precisa de quem faz.'); return; }
-    if (novas.some(a => !a.prazo)) { toast('Defina até quando em cada ação: escolha um dos prazos rápidos ou uma data.'); return; }
+    const e = novas.map(a => erroQuando(a.prazo, a.hora)).find(Boolean); if (e) { toast(e.replace('Escolha', 'Em cada ação, escolha')); return; }
     r.acoes = novas;
   }
   const antes = C.D.progresso[id];
@@ -456,8 +467,19 @@ VIEWS.coachee.quem = () => {
     ${C.D.assessments.length ? '<button class="bt bt-linha" data-ir="relatorio">Ver relatório dos assessments</button>' : ''}</div>
   ${pa ? `<div class="card ouro" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="rotulinho ouro-tx">${nomeParada(pa)} aberta</div><b>Refaça seus assessments até ${br(pa.data)}.</b> <span class="mu">Depois registre a parada em "Minha evolução".</span></div><button class="bt bt-linha bt-sm" data-ir="evolucao">Ir para a parada</button></div>`
     : pp ? `<div class="meta-mini"><span class="rotulinho ouro-tx">Próxima reavaliação</span><span>${nomeParada(pp)} · abre em ${br(pp.abre)}</span></div>` : ''}
-  <div class="grade g2">${Object.keys(CONTEUDO.ASSESS).map(k => cartaoAssess(k, C.D, false, Pp)).join('')}</div>`;
+  <div class="grade g2">${Object.keys(CONTEUDO.ASSESS).map(k => cartaoAssess(k, C.D, false, Pp)).join('')}</div>
+  ${cartaoSwot()}`;
 };
+// A análise SWOT (passo 2 da Trilha II) também aparece em Quem eu sou.
+function cartaoSwot() {
+  const L = C.L, D = C.D; const it = L.find(i => i.chave === 'swot'); if (!it) return '';
+  const pr = D.progresso[it.id]; const r = pr && pr.ok && pr.respostas;
+  if (!r) return `<div class="card swot-quem" style="margin-top:16px"><h3>Sua análise SWOT</h3><p class="mu" style="margin:0 0 12px">Forças, fraquezas, oportunidades e ameaças: a sua leitura estratégica atual. Ela é o passo 2 da Trilha II.</p>
+    ${R.acessivel(L, D, it) ? `<button class="bt bt-linha bt-sm" data-ir="item" data-p="${it.id}">Fazer minha SWOT</button>` : `<span class="cadeado">${LOCK} Abre depois do passo 1 da Trilha II</span>`}</div>`;
+  return `<div class="card swot-quem" style="margin-top:16px"><h3>Sua análise SWOT <span class="mu acao" style="font-size:12px;font-weight:500">feita em ${br(pr.data)}</span></h3>
+    <div class="swot">${(it.campos || []).map((c, k) => `<div class="q"><div class="rotulinho ouro-tx">${esc(c.rotulo)}</div><ul>${String(r[k] || '').split('\n').filter(Boolean).map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`).join('')}</div>
+    <div style="margin-top:12px"><button class="link-discreto" data-ir="item" data-p="${it.id}">Abrir o passo para rever</button></div></div>`;
+}
 
 VIEWS.coachee.questionario = () => {
   const k = S.p; const q = CONTEUDO.QUEST[k];
@@ -619,7 +641,19 @@ FORMS['form-parada'] = async f => {
 
 /* ===================== Na prática (RF-40, RF-41, RF-45) ===================== */
 const DIAS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+// Na prática fica bloqueado até o coachee chegar ao passo 8 da Trilha II (plano de ação).
+function praticaBloqueada() {
+  const L = C.L, D = C.D; const p = L.find(i => i.chave === 'plano');
+  const its = L.filter(i => i.t.id === p.t.id); const f = its.filter(i => R.feito(D, i.id)).length; const a = its.find(i => !R.feito(D, i.id));
+  return `<div class="topo"><div><div class="sobre">Do plano para o dia a dia</div><h1>Na prática</h1><div class="sub">Suas ações e a sua rotina da semana.</div></div></div>
+  <div class="card bloqueio-pratica"><span class="cadeado">${LOCK} Ainda bloqueado</span>
+    <h3>Na prática abre no passo 8 da Trilha II</h3>
+    <p class="mu">No passo 8 você monta o seu plano de ação: o que fazer, quem faz, o dia e a hora. Essas ações aparecem aqui, junto com a sua rotina da semana. Depois da primeira ação, a Trilha III também é liberada.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin:12px 0"><div class="barra" style="flex:1"><b style="width:${f / its.length * 100}%"></b></div><span class="mu num" style="font-size:12px">${f} de ${its.length} passos</span></div>
+    ${a ? `<button class="bt bt-ouro" data-ir="item" data-p="${a.id}">Continuar: ${esc(a.titulo)}</button>` : ''}</div>`;
+}
 VIEWS.coachee.pratica = () => {
+  if (!R.praticaLiberada(C.L, C.D)) return praticaBloqueada();
   const D = C.D, h = hoje(); const seg = R.segunda(h); const semana = DIAS.map((d, i) => R.somaDias(seg, i));
   const pe = proxEncontro(); const aulaPlano = C.L.find(i => i.chave === 'plano');
   return `
@@ -631,8 +665,8 @@ VIEWS.coachee.pratica = () => {
       <span>2. Use os exemplos de cada campo</span>
       <span>3. Leve a ação para a mentoria em grupo${pe ? ` de ${brc(pe.data)}` : ''}</span></div>
     ${D.acoes.length ? `<div class="tabela-wrap"><table>
-      <thead><tr><th style="width:36px"></th><th>O que muda</th><th>Quem faz</th><th>Até quando</th><th>Mentoria</th><th></th></tr></thead>
-      <tbody>${D.acoes.map(a => `<tr><td><input type="checkbox" class="ck" data-muda="acao" data-id="${a.id}" ${a.ok ? 'checked' : ''} aria-label="Concluir: ${esc(a.oque)}"></td><td class="${a.ok ? 'feita' : ''}"><b>${esc(a.oque)}</b></td><td>${esc(a.quem)}</td><td class="num">${br(a.prazo)} ${R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : a.ok ? '<span class="chip ok">feita</span>' : ''}</td><td>${a.ok ? '' : `<button class="bt ${a.pauta ? 'bt-linha' : 'bt-fantasma'} bt-sm" data-acao="pauta" data-id="${a.id}">${a.pauta ? '✓ Na pauta' : 'Levar para a mentoria'}</button>`}</td><td style="text-align:right"><button class="bt bt-fantasma bt-sm" data-acao="editar-acao" data-id="${a.id}">Editar</button></td></tr>`).join('')}</tbody>
+      <thead><tr><th style="width:36px"></th><th>O que fazer</th><th>Quem faz</th><th>Quando faz</th><th>Hora</th><th>Mentoria</th><th></th></tr></thead>
+      <tbody>${D.acoes.map(a => `<tr><td><input type="checkbox" class="ck" data-muda="acao" data-id="${a.id}" ${a.ok ? 'checked' : ''} aria-label="Concluir: ${esc(a.oque)}"></td><td class="${a.ok ? 'feita' : ''}"><b>${esc(a.oque)}</b></td><td>${esc(a.quem)}</td><td class="num">${br(a.prazo)} ${R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : a.ok ? '<span class="chip ok">feita</span>' : ''}</td><td class="num">${esc(a.hora || '—')}</td><td>${a.ok ? '' : `<button class="bt ${a.pauta ? 'bt-linha' : 'bt-fantasma'} bt-sm" data-acao="pauta" data-id="${a.id}">${a.pauta ? '✓ Na pauta' : 'Levar para a mentoria'}</button>`}</td><td style="text-align:right"><button class="bt bt-fantasma bt-sm" data-acao="editar-acao" data-id="${a.id}">Editar</button></td></tr>`).join('')}</tbody>
     </table></div>` : '<div class="vazio">Nenhuma ação ainda. As ações do passo 8 da jornada entram aqui, e você pode cadastrar outras em "+ Nova ação".</div>'}</div>
   <div class="card"><h3>Planner · semana de ${brc(seg)} <button class="bt bt-linha bt-sm acao" data-acao="nova-rotina">+ Nova rotina</button></h3>
     <div class="tabela-wrap"><div class="planner">
@@ -645,17 +679,18 @@ VIEWS.coachee.pratica = () => {
 };
 
 function modalAcao(a) {
-  const novo = !a; a = a || { quem: primeiroNome(S.u.nome), prazo: '' };
+  const novo = !a; a = a || { quem: primeiroNome(S.u.nome), prazo: '', hora: '' };
   abrirModal(novo ? 'Nova ação' : 'Editar ação', `<p class="mu" style="margin:0 0 12px;font-size:13px">Uma boa ação é pequena, tem um responsável e um prazo. Se ela parece grande, quebre em duas ou três.</p>
-    <label class="rotulo" for="na-o">O que muda</label><details class="exemplo"><summary>Ver exemplo</summary><span>Em vez de "Melhorar a comunicação da equipe", escreva "Fazer reunião de 30 min com a equipe toda segunda, com pauta enviada na sexta".</span></details><input class="campo" id="na-o" value="${esc(a.oque || '')}" placeholder="Uma ação concreta, que dá para começar esta semana">
-    <div class="duas"><div><label class="rotulo" for="na-q">Quem faz</label><input class="campo" id="na-q" value="${esc(a.quem || '')}"></div><div><label class="rotulo" for="na-p">Até quando</label>${campoPrazo('na-p', a.prazo)}</div></div>
+    <label class="rotulo" for="na-o">O que fazer</label><details class="exemplo"><summary>Ver exemplo</summary><span>Em vez de "Melhorar a comunicação da equipe", escreva "Fazer reunião de 30 min com a equipe toda segunda, com pauta enviada na sexta".</span></details><input class="campo" id="na-o" value="${esc(a.oque || '')}" placeholder="Uma ação concreta, que dá para começar esta semana">
+    <div class="duas"><div><label class="rotulo" for="na-q">Quem faz</label><input class="campo" id="na-q" value="${esc(a.quem || '')}"></div><div><label class="rotulo" for="na-p">Quando faz · hora</label>${campoQuando('na-p', a.prazo, a.hora, 'Ação')}</div></div>
+    <p class="mu" style="font-size:12px;margin:-4px 0 10px">O dia exato em que você vai fazer, de hoje até ${br(limiteAcao())} (no máximo a semana que vem).</p>
     <label style="display:flex;gap:10px;align-items:center;margin:2px 0 4px"><input type="checkbox" class="ck" id="na-m" ${a.pauta ? 'checked' : ''}> Quero discutir esta ação na mentoria em grupo</label>
     ${novo ? '' : '<div class="sep"></div><button type="button" class="link-discreto" data-acao="excluir-acao" data-id="' + a.id + '">Excluir esta ação</button>'}`,
   novo ? 'Adicionar' : 'Salvar', async () => {
-    const dados = { oque: valor('na-o'), quem: valor('na-q'), prazo: valor('na-p'), pauta: $('#na-m').checked };
+    const dados = { oque: valor('na-o'), quem: valor('na-q'), prazo: valor('na-p'), hora: valor('na-p-hora'), pauta: $('#na-m').checked };
     if (!dados.oque) { toast('Descreva a ação.'); return false; }
     if (!dados.quem) { $('#na-q').focus(); toast('Diga quem faz.'); return false; }
-    if (!dados.prazo) { $('#na-p').focus(); toast('Defina até quando: escolha um dos prazos rápidos ou uma data.'); return false; }
+    const eq = erroQuando(dados.prazo, dados.hora, novo ? null : a.prazo); if (eq) { (dados.prazo ? $('#na-p-hora') : $('#na-p')).focus(); toast(eq); return false; }
     if (novo) { const doc = { coacheeId: S.u.id, ...dados, ok: false, criada: hoje() }; const id = await col('acoes').adicionar(doc); C.D.acoes.push({ id, ...doc }); toast('Ação adicionada ao plano.'); }
     else { await col('acoes').salvar(a.id, dados); Object.assign(a, dados); toast('Ação atualizada.'); }
     render();
@@ -663,7 +698,7 @@ function modalAcao(a) {
 }
 const acao = id => C.D.acoes.find(a => a.id === id);
 Object.assign(ACOES, {
-  'nova-acao'() { modalAcao(null); },
+  'nova-acao'() { if (!R.praticaLiberada(C.L, C.D)) { toast('Na prática abre no passo 8 da Trilha II.'); return; } modalAcao(null); },
   'editar-acao'(t) { modalAcao(acao(t.dataset.id)); },
   async 'excluir-acao'(t) { const a = acao(t.dataset.id); await col('acoes').remover(a.id); C.D.acoes = C.D.acoes.filter(x => x !== a); $('#modal').close(); toast('Ação excluída.'); render(); },
   async pauta(t) { const a = acao(t.dataset.id); a.pauta = !a.pauta; await col('acoes').salvar(a.id, { pauta: a.pauta }); toast(a.pauta ? 'Ação levada para a pauta da próxima mentoria em grupo.' : 'Ação retirada da pauta.'); render(); },

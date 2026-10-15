@@ -70,7 +70,7 @@ VIEWS.coach.painel = () => {
     <div class="card"><h3>Precisam de você</h3>
       <p class="mu" style="font-size:12.5px;margin:-4px 0 6px">Montado automaticamente: pedidos de sessão, ações atrasadas, paradas pendentes, dias sem acesso e renovação próxima.</p><div class="lista">
       ${prec.map(x => { const c = daCarteira(x.coacheeId); if (!c) return ''; return x.tipo === 'pedido'
-        ? `<div class="item clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>Pediu uma sessão individual (${x.pedido.status === 'pago' ? 'pago' : 'aguardando pagamento'}): "${esc(x.pedido.motivo)}" · ${esc(x.pedido.horario)}</small></div><span class="chip ouro"><span class="p"></span>Pediu sessão</span></div>`
+        ? `<div class="item clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>Solicitou uma sessão individual (${x.pedido.status === 'pago' ? 'pago' : 'entre em contato'}): "${esc(x.pedido.motivo)}" · ${esc(x.pedido.horario)}</small></div><span class="chip ouro"><span class="p"></span>Pediu sessão</span></div>`
         : x.tipo === 'parada' ? `<div class="item">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>${esc(x.nota)}${(c.D.avisos || {})['parada_' + x.parada.n] ? ' · lembrete enviado por e-mail' : ''}</small></div><span class="chip ${x.atrasada ? 'warn' : 'ouro'}"><span class="p"></span>${x.atrasada ? 'Parada pendente' : 'Parada aberta'}</span><button class="bt bt-linha bt-sm" data-acao="avisar-parada" data-c="${c.u.id}" data-n="${x.parada.n}">Avisar</button></div>`
         : `<div class="item clicavel" tabindex="0" data-ir="ficha" data-p="${c.u.id}">${av(c.u)}<div class="tx"><b>${esc(c.u.nome)}</b><small>${esc(x.nota)}</small></div>${chipSt(x.st)}</div>`; }).join('') || '<div class="vazio">Ninguém precisando de atenção agora.</div>'}
     </div>
@@ -174,7 +174,7 @@ VIEWS.coach.ficha = () => {
     const disc = R.historico(D, 'disc').pop();
     const ped = C.pedidos.filter(p => p.coacheeId === u.id && p.status !== 'agendado' && p.status !== 'cancelado');
     corpo = `
-    ${ped.map(p => `<div class="card ouro" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="rotulinho ouro-tx">Pedido de sessão individual · ${p.status === 'pago' ? 'pago' : 'aguardando pagamento'}</div><b>"${esc(p.motivo)}"</b><div class="mu" style="font-size:12.5px">${p.horarioId ? 'Horário reservado' : 'Preferência'}: ${esc(p.horario)} · pedido em ${br(p.data)}</div></div>${p.status === 'pago' ? `<button class="bt bt-ouro bt-sm" data-acao="agendar-sessao" data-id="${p.id}">Marcar como agendada</button>` : ''}</div>`).join('')}
+    ${ped.map(p => `<div class="card ouro" style="margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:220px"><div class="rotulinho ouro-tx">Solicitação de sessão individual · ${p.status === 'pago' ? 'pago' : 'entre em contato'}</div><b>"${esc(p.motivo)}"</b><div class="mu" style="font-size:12.5px">${p.horarioId ? 'Horário solicitado' : 'Preferência'}: ${esc(p.horario)} · em ${br(p.data)}</div>${p.whats ? `<div style="margin-top:4px">${botaoWaCoachee(p)}</div>` : ''}</div>${p.status === 'pago' ? `<button class="bt bt-ouro bt-sm" data-acao="agendar-sessao" data-id="${p.id}">Marcar como agendada</button>` : ''}</div>`).join('')}
     <div class="grade g4" style="margin-bottom:16px">
       <div class="card kpi"><div class="v num">${pc}<small>%</small></div><div class="l">${prox ? `Trilha ${esc(prox.t.n)} em andamento` : 'Jornada concluída'}</div><div class="barra" style="margin-top:10px"><b style="width:${pc}%"></b></div></div>
       <div class="card kpi"><div class="v num">${R.diasSeguidos(C.L, D, u, h)}</div><div class="l">dias seguidos em movimento</div></div>
@@ -197,8 +197,8 @@ VIEWS.coach.ficha = () => {
   }
   if (S.aba === 'acao') corpo = `
     <div class="card"><h3>Plano de ação do coachee</h3>
-      ${D.acoes.length ? `<div class="tabela-wrap"><table><thead><tr><th>O que muda</th><th>Quem faz</th><th>Até quando</th><th>Situação</th><th>Mentoria</th></tr></thead>
-      <tbody>${D.acoes.map(a => `<tr><td class="${a.ok ? 'feita' : ''}"><b>${esc(a.oque)}</b></td><td>${esc(a.quem)}</td><td class="num">${br(a.prazo)}</td><td>${a.ok ? '<span class="chip ok">feita</span>' : R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : '<span class="chip">em aberto</span>'}</td><td>${a.pauta && !a.ok ? '<span class="chip ouro">na pauta</span>' : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="vazio">Nenhuma ação cadastrada ainda.</div>'}
+      ${D.acoes.length ? `<div class="tabela-wrap"><table><thead><tr><th>O que fazer</th><th>Quem faz</th><th>Quando faz</th><th>Hora</th><th>Situação</th><th>Mentoria</th></tr></thead>
+      <tbody>${D.acoes.map(a => `<tr><td class="${a.ok ? 'feita' : ''}"><b>${esc(a.oque)}</b></td><td>${esc(a.quem)}</td><td class="num">${br(a.prazo)}</td><td class="num">${esc(a.hora || '—')}</td><td>${a.ok ? '<span class="chip ok">feita</span>' : R.atrasada(a, h) ? '<span class="chip bad">atrasada</span>' : '<span class="chip">em aberto</span>'}</td><td>${a.pauta && !a.ok ? '<span class="chip ouro">na pauta</span>' : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="vazio">Nenhuma ação cadastrada ainda.</div>'}
       <div class="sep"></div><p class="mu" style="font-size:12.5px;margin:0">O plano de ação é montado pelo coachee no passo 8 da jornada e em Na prática. Você orienta pela aula, pelos exemplos e nas mentorias em grupo.</p>
     </div>`;
   if (S.aba === 'evolucao') {
@@ -556,6 +556,7 @@ VIEWS.coach.meus = () => {
         <div class="duas"><div>${campo('mc-preco', 'precoSessao', 'Preço (R$)', 'Ex.: 450')}</div><div>${campo('mc-dur', 'duracaoSessao', 'Duração (min)', '60', 'number')}</div></div>
         ${campo('mc-pag', 'pagSessao', 'Link de pagamento da sessão', 'https://…')}
         ${campo('mc-ss', 'salaSessao', 'Sala fixa das sessões (link da chamada)', 'https://meet.google.com/…')}
+        ${campo('mc-wn', 'whatsappNumero', 'Seu WhatsApp para avisos de solicitação (com DDD)', '(11) 99999-9999', 'tel')}
       </div>
       <div style="display:flex;justify-content:flex-end"><button class="bt bt-ouro" type="submit">Salvar meus ajustes</button></div>
     </div>
@@ -569,7 +570,8 @@ MUDA['foto-coach'] = async t => {
 };
 FORMS['form-meus'] = async () => {
   const d = { nome: valor('mc-nome'), apresentacao: valor('mc-apres'), whatsapp: valor('mc-wa'), sala: valor('mc-sala'), disc: valor('mc-disc'),
-    precoSessao: valor('mc-preco'), duracaoSessao: valor('mc-dur') ? +valor('mc-dur') : '', pagSessao: valor('mc-pag'), salaSessao: valor('mc-ss') };
+    precoSessao: valor('mc-preco'), duracaoSessao: valor('mc-dur') ? +valor('mc-dur') : '', pagSessao: valor('mc-pag'), salaSessao: valor('mc-ss'), whatsappNumero: valor('mc-wn') };
+  if (d.whatsappNumero && !numeroWa(d.whatsappNumero)) { toast('Informe o WhatsApp com DDD, só números. Ex.: 11 99999-9999'); return; }
   for (const k of ['whatsapp', 'sala', 'disc', 'pagSessao', 'salaSessao']) if (d[k] && !/^https:\/\//.test(d[k])) { toast('Os links precisam começar com https://'); return; }
   if (d.duracaoSessao !== '' && (d.duracaoSessao < 15 || d.duracaoSessao > 240)) { toast('Use uma duração entre 15 e 240 minutos.'); return; }
   await col('coaches').salvar(S.u.id, { ...d, atualizadoEm: hoje() }); C.perfilCoach = { ...(C.perfilCoach || {}), ...d };

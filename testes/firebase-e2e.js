@@ -107,10 +107,22 @@ async function definirSenha(email, senha) {
   await p.click('#form-passo button[type=submit]'); await espera(1200);
   if (await p.$('.celebra')) await p.click('.celebra [data-fechar]');
   ok(await p.evaluate(() => !!Regras.meta(C.L, C.D)), 'meta escrita no passo 3');
-  await ir('pratica'); await p.click('[data-acao="nova-acao"]'); await p.fill('#na-o', 'Reunião semanal com a equipe'); await p.click('#form-modal [data-acao="prazo-rapido"][data-d="semana"]'); await p.check('#na-m', { force: true }); await salvarModal();
+  await ir('pratica'); ok((await texto()).includes('Na prática abre no passo 8'), 'Na prática bloqueado antes do passo 8');
+  // Passos 4 a 7 preenchidos com respostas simples; o passo 8 cria a primeira ação e libera Na prática e a Trilha III.
+  for (const id of ['e4', 'e5', 'e6', 'e7']) {
+    await ir('item', id);
+    for (const c of await p.$$('#form-passo [id^="ps-"]')) { const t = await c.getAttribute('type'); await c.fill(t === 'number' ? '4' : t === 'date' ? '2027-12-15' : 'Resposta do passo'); }
+    await p.click('#form-passo button[type=submit]'); await espera(900); if (await p.$('.celebra')) await p.click('.celebra [data-fechar]');
+  }
+  ok(await p.evaluate(() => !Regras.acessivel(C.L, C.D, C.L.find(i => i.id === 'a31'))), 'Trilha III fechada antes da primeira ação');
+  await ir('item', 'e8'); await p.fill('#ps-0', 'Revisar toda sexta'); await p.fill('.linha-acao .l-oque', 'Definir o sucessor da loja');
+  await p.click('.linha-acao [data-acao="prazo-rapido"][data-d="1"]'); await p.fill('.linha-acao .q-hora', '08:00');
+  await p.click('#form-passo button[type=submit]'); await espera(1200); if (await p.$('.celebra')) await p.click('.celebra [data-fechar]');
+  ok(await p.evaluate(() => C.D.acoes.length === 1 && C.D.acoes[0].hora === '08:00' && Regras.acessivel(C.L, C.D, C.L.find(i => i.id === 'a31'))), 'passo 8 grava a ação com dia e hora e libera a Trilha III');
+  await ir('pratica'); await p.click('[data-acao="nova-acao"]'); await p.fill('#na-o', 'Reunião semanal com a equipe'); await p.click('#form-modal [data-acao="prazo-rapido"][data-d="0"]'); await p.fill('#na-p-hora', '17:00'); await p.check('#na-m', { force: true }); await salvarModal();
   await p.click('[data-acao="nova-rotina"]'); await p.fill('#nr-t', 'Revisar prioridades'); await salvarModal();
   await p.click('[data-muda="rotina"]:not([disabled])'); await espera(600);
-  ok(await p.evaluate(() => C.D.acoes.length === 1 && C.D.rotinas[0].marcas.length === 1), 'ação e rotina gravadas');
+  ok(await p.evaluate(() => C.D.acoes.length === 2 && C.D.rotinas[0].marcas.length === 1), 'ação e rotina gravadas');
   await ir('evolucao'); await p.fill('#vitoria', 'Primeira conversa de feedback'); await p.click('#form-vitoria button'); await espera(1200);
   if (await p.$('.celebra')) await p.click('.celebra [data-fechar]');
   await ir('quem'); await p.click('[data-ir="questionario"][data-p="ie"]'); await espera(200);
@@ -118,7 +130,8 @@ async function definirSenha(email, senha) {
   await p.click('#form-quest button[type=submit]'); await espera(1000);
   ok(await p.evaluate(() => C.D.assessments.length === 1), 'assessment de inteligência emocional gravado');
   // Sem horários abertos ainda: o pedido vai com a preferência de dias.
-  await ir('sessao'); await p.fill('#ss-h', 'terças de manhã'); await p.fill('#ss-m', 'Destravar a delegação'); await p.click('#form-sessao button[type=submit]'); await espera(1000);
+  await ir('sessao'); await p.fill('#ss-h', 'terças de manhã'); await p.fill('#ss-m', 'Destravar a delegação'); await p.fill('#ss-w', '11 98888-7777'); await p.click('#form-sessao button[type=submit]'); await espera(1000);
+  if (await p.$('#modal[open] [data-fechar]')) await p.click('#modal [data-fechar]');
   ok(await p.evaluate(() => C.pedidos.length === 1), 'pedido de sessão avulsa gravado');
 
   console.log('\n== coach ==');
@@ -128,7 +141,7 @@ async function definirSenha(email, senha) {
   ok((await texto()).includes('Como estamos') && await p.evaluate(() => C.usuarios.length >= 4), 'coach troca para Administrador e vê Pessoas (regras aceitam)');
   await p.click('[data-acao="trocar-modo"]'); await espera(1500);
   ok(await p.evaluate(() => C.carteira.map(c => c.u.email).sort().join() === 'ana@teste.com,rafael@teste.com'), 'coach vê a própria carteira (Ana e Rafael)');
-  ok((await texto()).includes('Pediu uma sessão individual'), 'pedido de sessão em "Precisam de você"');
+  ok((await texto()).includes('Solicitou uma sessão individual'), 'pedido de sessão em "Precisam de você"');
   await ir('ficha', (await p.evaluate(() => C.carteira[0].u.id)));
   for (const a of ['geral', 'acao', 'evolucao', 'assess', 'respostas']) { await p.click(`[data-aba="${a}"]`); await espera(200); }
   await p.click('[data-acao="comentar"][data-alvo="e3"]'); await p.fill('#cm-t', 'Meta clara. Vamos juntos.'); await salvarModal();
@@ -180,7 +193,8 @@ async function definirSenha(email, senha) {
   await ir('sessao'); ok((await texto()).includes('R$ 450'), 'coachee vê o preço da sessão definido pelo coach');
   await ir('quem'); ok(!!(await p.$('.pdf-card [data-acao="abrir-arquivo"]')) && !(await p.$('[data-acao="anexar-pdf-assess"]')), 'coachee vê o PDF do DISC e não tem opção de anexar');
   await ir('sessao'); await p.click('.agenda-dia .hora'); await p.fill('#ss-m', 'Montar a conversa com a diretoria'); await p.click('#form-sessao button[type=submit]'); await espera(1500);
-  ok(await p.evaluate(() => C.horarios[0].status === 'reservado' && C.pedidos.some(x => x.horarioId === C.horarios[0].id)), 'coachee reserva o horário do coach (regra aceita)');
+  if (await p.$('#modal[open] [data-fechar]')) await p.click('#modal [data-fechar]');
+  ok(await p.evaluate(() => C.horarios[0].status === 'reservado' && C.pedidos.some(x => x.horarioId === C.horarios[0].id)), 'coachee solicita o horário do coach (regra aceita)');
   await ir('painel');
   await p.fill('#pergunta-resp', 'O relatório mensal.'); await p.click('#form-pergunta button'); await espera(800);
   await ir('item', 'e3'); ok((await texto()).includes('Meta clara. Vamos juntos.'), 'coachee vê o comentário do coach');

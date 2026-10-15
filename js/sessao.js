@@ -1,14 +1,15 @@
 /* ===================== Sessão individual (1:1) com agenda do coach (RN-12) ===================== */
 // O coach abre horários na "Minha agenda" (coleção horarios). O coachee escolhe um horário livre,
-// conta o assunto e vai para o pagamento: o horário fica reservado para ele. Quando o administrador
-// confirma o pagamento, a sessão fica agendada; se cancelar, o horário volta a ficar livre.
+// conta o assunto e solicita: o horário fica guardado para ele e o coach é avisado pelo WhatsApp.
+// O coach entra em contato para combinar; quando o administrador confirma o pagamento, a sessão fica
+// agendada; se cancelar, o horário volta a ficar livre.
 
 const DIAS_SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 const diaSemana = iso => DIAS_SEM[new Date(iso + 'T12:00:00').getDay()];
 const quandoSessao = x => `${diaSemana(x.data)}, ${brc(x.data)} às ${x.hora}`;
 const ordemHorario = (a, b) => (a.data + a.hora).localeCompare(b.data + b.hora);
 const IC_SESSAO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/><circle cx="12" cy="15" r="2"/></svg>';
-const PEDIDO_ST = { aguardando: 'aguardando pagamento', pago: 'pago, aguardando o horário', agendado: 'confirmada', cancelado: 'cancelado' };
+const PEDIDO_ST = { aguardando: 'solicitada, aguardando contato', pago: 'pago, aguardando o horário', agendado: 'confirmada', cancelado: 'cancelado' };
 const precoSessao = () => doCoach('precoSessao') ? `R$ ${esc(doCoach('precoSessao'))}` : 'valor informado no pagamento';
 
 // Horários livres do coach a partir de agora (hoje, só os que ainda não passaram).
@@ -31,12 +32,19 @@ function linkAgendaGoogle(p) {
   return `https://calendar.google.com/calendar/render?${q}`;
 }
 function acoesSessao(p) {
-  if (p.status === 'aguardando') return urlSegura(doCoach('pagSessao')) ? `<a class="bt bt-ouro bt-sm" href="${esc(urlSegura(doCoach('pagSessao')))}" target="_blank" rel="noopener">Concluir o pagamento</a>` : '';
+  if (p.status === 'aguardando') { const wa = linkAvisoCoach(p);
+    return `<small class="mu sm-nota">${esc(primeiroNome(nomeCoach()))} vai entrar em contato com você pelo WhatsApp para confirmar.</small>${wa ? `<a class="bt bt-linha bt-sm" href="${esc(wa)}" target="_blank" rel="noopener">${IC_WA_BT}Avisar ${esc(primeiroNome(nomeCoach()))} no WhatsApp</a>` : ''}`; }
   if (p.status !== 'agendado') return '<small class="mu sm-nota">O horário é confirmado por ' + esc(primeiroNome(nomeCoach())) + ' em breve.</small>';
   const link = linkSessao(p); const ag = linkAgendaGoogle(p);
   return `${link ? `<a class="bt bt-ouro bt-sm" href="${esc(link)}" target="_blank" rel="noopener">${IC_VIDEO}Entrar na sessão</a>` : `<small class="mu sm-nota">O link da chamada aparece aqui assim que ${esc(primeiroNome(nomeCoach()))} definir.</small>`}
     ${ag ? `<a class="bt bt-linha bt-sm" href="${esc(ag)}" target="_blank" rel="noopener">Adicionar à agenda</a>` : ''}`;
 }
+// WhatsApp: número com DDD vira link wa.me (Brasil: 55 na frente quando falta).
+const numeroWa = n => { const d = String(n || '').replace(/\D/g, ''); return d.length >= 10 && d.length <= 11 ? '55' + d : d.length >= 12 && d.length <= 13 ? d : ''; };
+const linkWa = (n, texto) => numeroWa(n) ? `https://wa.me/${numeroWa(n)}?text=${encodeURIComponent(texto)}` : '';
+// Aviso ao coach: mensagem pronta com o horário e o assunto da solicitação.
+const linkAvisoCoach = p => linkWa(doCoach('whatsappNumero'), `Olá, ${primeiroNome(nomeCoach())}! Sou ${p.nome || S.u.nome} e solicitei uma sessão individual pela plataforma: ${p.horario}. Assunto: ${p.motivo}${p.whats ? `. Meu WhatsApp: ${p.whats}` : ''}`);
+const IC_WA_BT = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 18.7z"/></svg>';
 const IC_VIDEO = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7h12v10H3zM15 10l6-3v10l-6-3"/></svg>';
 const cartaoMinhaSessao = p => `<div class="card ouro sessao-minha"><span class="sf-ic">${IC_SESSAO}</span><div class="tx"><div class="pp-rot">Sua sessão · ${PEDIDO_ST[p.status] || esc(p.status)}</div><b style="font-size:18px">${esc(p.horario)}</b><small class="mu">"${esc(p.motivo)}"</small></div>
     <div class="sm-acoes">${acoesSessao(p)}</div></div>`;
@@ -56,7 +64,7 @@ VIEWS.coachee.sessao = () => {
   const livres = horariosLivres(); const ps = pedidosAtivos();
   const dias = []; livres.forEach(x => { const d = dias.find(y => y.data === x.data); if (d) d.hs.push(x); else dias.push({ data: x.data, hs: [x] }); });
   const sel = livres.find(x => x.id === S.horario);
-  const passos = [['1', 'Escolha um horário', `da agenda de ${esc(primeiroNome(nomeCoach()))}`], ['2', 'Conte o assunto', 'e vá para o pagamento'], ['3', 'Pronto', 'a sessão é confirmada após o pagamento']];
+  const passos = [['1', 'Escolha um horário', `da agenda de ${esc(primeiroNome(nomeCoach()))}`], ['2', 'Conte o assunto', 'e solicite o horário'], ['3', `${esc(primeiroNome(nomeCoach()))} entra em contato`, 'pelo WhatsApp, para confirmar']];
   return `
   <div class="topo"><div><div class="sobre">Sessão individual</div><h1>Converse a sós com ${esc(nomeCoach())}</h1>
     <div class="sub">${esc(doCoach('duracaoSessao') || 60)} minutos, online, para destravar um ponto específico da sua jornada · ${precoSessao()}</div></div></div>
@@ -69,11 +77,12 @@ VIEWS.coachee.sessao = () => {
         <div class="ad-horas">${d.hs.map(x => `<button class="hora ${S.horario === x.id ? 'sel' : ''}" data-acao="escolher-horario" data-id="${x.id}" aria-pressed="${S.horario === x.id}">${x.hora}</button>`).join('')}</div></div>`).join('')}</div>`
         : `<p class="mu" style="margin:0 0 10px">${esc(primeiroNome(nomeCoach()))} ainda não abriu horários. Você pode deixar seu pedido com os melhores dias e horários, e ele confirma com você.</p>`}
     </div>
-    <form class="card" id="form-sessao"><h3>${sel ? `Reservar ${quandoSessao(sel)}` : dias.length ? 'Escolha um horário ao lado' : 'Pedir uma sessão'}</h3>
+    <form class="card" id="form-sessao"><h3>${sel ? `Solicitar ${quandoSessao(sel)}` : dias.length ? 'Escolha um horário ao lado' : 'Solicitar uma sessão'}</h3>
       ${!dias.length ? '<label class="rotulo" for="ss-h">Melhores dias e horários</label><input class="campo" id="ss-h" placeholder="Ex.: terças e quintas de manhã">' : ''}
       <label class="rotulo" for="ss-m">Sobre o que você quer conversar?</label><textarea class="campo" id="ss-m" rows="4" placeholder="Ex.: estou travada para delegar e preciso de ajuda para montar a conversa com a equipe"></textarea>
-      <button class="bt bt-ouro" type="submit" ${dias.length && !sel ? 'disabled' : ''} style="width:100%">${urlSegura(doCoach('pagSessao')) ? 'Reservar e ir para o pagamento' : 'Reservar horário'}</button>
-      <p class="mu" style="font-size:12.5px;margin:10px 0 0">O horário fica reservado para você. A sessão é confirmada quando o pagamento for registrado.</p>
+      <label class="rotulo" for="ss-w">Seu WhatsApp (com DDD)</label><input class="campo" id="ss-w" type="tel" inputmode="tel" placeholder="(11) 98888-7777" value="${esc(S.u.whatsapp || ((C.pedidos || []).find(p => p.whats) || {}).whats || '')}">
+      <button class="bt bt-ouro" type="submit" ${dias.length && !sel ? 'disabled' : ''} style="width:100%">Solicitar horário</button>
+      <p class="mu" style="font-size:12.5px;margin:10px 0 0">O horário fica guardado para você. ${esc(primeiroNome(nomeCoach()))} vai entrar em contato pelo WhatsApp para confirmar a sessão e o pagamento.</p>
     </form>
   </div>`;
 };
@@ -86,7 +95,8 @@ FORMS['form-sessao'] = async () => {
   const motivo = valor('ss-m'); if (!motivo) { $('#ss-m').focus(); toast('Conte em uma frase sobre o que você quer conversar.'); return; }
   const livres = horariosLivres(); const x = livres.find(y => y.id === S.horario);
   if (livres.length && !x) { toast('Escolha um dos horários disponíveis.'); return; }
-  const doc = { coacheeId: S.u.id, nome: S.u.nome, email: S.u.email, motivo, status: 'aguardando', data: hoje(), horario: x ? quandoSessao(x) : (valor('ss-h') || 'A combinar') };
+  const whats = valor('ss-w'); if (!numeroWa(whats)) { $('#ss-w').focus(); toast('Informe seu WhatsApp com DDD para o contato.'); return; }
+  const doc = { coacheeId: S.u.id, nome: S.u.nome, email: S.u.email, whats, motivo, status: 'aguardando', data: hoje(), horario: x ? quandoSessao(x) : (valor('ss-h') || 'A combinar') };
   if (x) {
     // Reserva primeiro: se outra pessoa pegou o horário no mesmo instante, a regra do banco recusa.
     try { await col('horarios').salvar(x.id, { status: 'reservado', coacheeId: S.u.id, nome: S.u.nome }); }
@@ -94,9 +104,21 @@ FORMS['form-sessao'] = async () => {
     Object.assign(x, { status: 'reservado', coacheeId: S.u.id }); Object.assign(doc, { horarioId: x.id, quando: x.data, hora: x.hora });
   }
   const id = await col('pedidos').adicionar(doc); C.pedidos.unshift({ id, ...doc }); S.horario = null;
-  const link = urlSegura(doCoach('pagSessao')); if (link) window.open(link, '_blank', 'noopener');
-  toast(x ? `Horário reservado: ${doc.horario}. ${link ? 'Conclua o pagamento na aba que abriu.' : 'A administração vai enviar o link de pagamento.'}` : 'Pedido registrado. Seu coach vai combinar o horário com você.'); render();
+  render(); solicitacaoEnviada({ id, ...doc });
 };
+
+// Depois de solicitar: confirmação e o botão para avisar o coach no WhatsApp (clique da pessoa, sem bloqueio de pop-up).
+function solicitacaoEnviada(p) {
+  const wa = linkAvisoCoach(p); const nc = esc(primeiroNome(nomeCoach()));
+  const m = $('#modal');
+  m.innerHTML = `<div class="modal-cab"><h2>Solicitação enviada</h2><button type="button" class="x" data-fechar aria-label="Fechar">×</button></div>
+    <div class="modal-corpo"><p><b>${esc(p.horario)}</b></p><p>${nc} vai entrar em contato com você pelo WhatsApp (${esc(p.whats)}) para confirmar a sessão e o pagamento.</p>
+      ${wa ? `<p class="mu" style="font-size:13px">Para agilizar, avise ${nc} agora: a mensagem já vai pronta.</p><a class="bt bt-ouro" style="width:100%" href="${esc(wa)}" target="_blank" rel="noopener" data-fechar>${IC_WA_BT}Avisar ${nc} no WhatsApp</a>` : ''}</div>`;
+  m.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', () => m.close())); m.showModal();
+}
+// Coach: responder o coachee no WhatsApp a partir da agenda e da ficha.
+const botaoWaCoachee = p => { const l = linkWa(p.whats, `Olá, ${primeiroNome(p.nome || '')}! Aqui é ${primeiroNome(nomeCoach())}. Recebi sua solicitação de sessão individual (${p.horario}).`);
+  return l ? `<a class="link-discreto" href="${esc(l)}" target="_blank" rel="noopener">Falar no WhatsApp · ${esc(p.whats)}</a>` : `<small class="mu">WhatsApp: ${esc(p.whats)}</small>`; };
 
 /* ----- Coach: abrir horários ----- */
 VIEWS.coach.agenda = () => {
@@ -104,12 +126,12 @@ VIEWS.coach.agenda = () => {
   const pedidoDe = x => C.pedidos.find(p => p.horarioId === x.id && p.status !== 'cancelado');
   const dias = []; meus.forEach(x => { const d = dias.find(y => y.data === x.data); if (d) d.hs.push(x); else dias.push({ data: x.data, hs: [x] }); });
   const livres = meus.filter(x => x.status === 'livre').length;
-  return `<div class="topo"><div><div class="sobre">Sessões individuais</div><h1>Minha agenda</h1><div class="sub">Abra os horários em que você atende. O coachee escolhe um deles, conta o assunto e paga.</div></div></div>
+  return `<div class="topo"><div><div class="sobre">Sessões individuais</div><h1>Minha agenda</h1><div class="sub">Abra os horários em que você atende. O coachee escolhe um deles, conta o assunto e solicita; você entra em contato pelo WhatsApp.</div></div></div>
   <div class="grade g-21" style="align-items:start">
-    <div class="card"><h3>Próximos horários <span class="mu acao num" style="font-size:12.5px;font-weight:500">${plural(livres, 'livre', 'livres')} · ${plural(meus.length - livres, 'reservado', 'reservados')}</span></h3>
+    <div class="card"><h3>Próximos horários <span class="mu acao num" style="font-size:12.5px;font-weight:500">${plural(livres, 'livre', 'livres')} · ${plural(meus.length - livres, 'ocupado', 'ocupados')}</span></h3>
       ${dias.length ? dias.map(d => `<div class="agenda-dia"><div class="ad-data"><b>${diaSemana(d.data)}</b><span>${brc(d.data)}</span></div><div class="ad-lista">${d.hs.map(x => { const p = pedidoDe(x);
         return x.status === 'livre' ? `<div class="ad-item"><span class="hora livre">${x.hora}</span><span class="mu">livre</span><button class="link-discreto" data-acao="remover-horario" data-id="${x.id}" aria-label="Remover ${x.hora} de ${brc(x.data)}">remover</button></div>`
-          : `<div class="ad-item"><span class="hora ${x.status === 'confirmado' ? 'ok' : 'res'}">${x.hora}</span><span><b>${esc(x.nome || 'Coachee')}</b> · ${x.status === 'confirmado' ? 'confirmada' : 'aguardando pagamento'}${p ? `<br><small class="mu">"${esc(p.motivo)}"</small><br><small class="${linkSessao(p) ? 'ok-tx' : 'mu'}">${p.link ? 'Link próprio desta sessão' : doCoach('salaSessao') ? 'Usa a sua sala fixa das sessões' : 'Sem link da chamada'}</small>` : ''}</span>
+          : `<div class="ad-item"><span class="hora ${x.status === 'confirmado' ? 'ok' : 'res'}">${x.hora}</span><span><b>${esc(x.nome || 'Coachee')}</b> · ${x.status === 'confirmado' ? 'confirmada' : 'solicitada · entre em contato'}${p ? `<br><small class="mu">"${esc(p.motivo)}"</small>${p.whats && x.status !== 'confirmado' ? `<br>${botaoWaCoachee(p)}` : ''}<br><small class="${linkSessao(p) ? 'ok-tx' : 'mu'}">${p.link ? 'Link próprio desta sessão' : doCoach('salaSessao') ? 'Usa a sua sala fixa das sessões' : 'Sem link da chamada'}</small>` : ''}</span>
             <span class="ad-bts">${p ? `<button class="link-discreto" data-acao="link-sessao" data-id="${p.id}">${p.link ? 'trocar link' : 'definir link'}</button>` : ''}<button class="link-discreto" data-acao="liberar-horario" data-id="${x.id}">cancelar reserva</button></span></div>`; }).join('')}</div></div>`).join('')
         : '<div class="vazio">Nenhum horário aberto. Adicione ao lado.</div>'}
     </div>

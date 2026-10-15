@@ -38,11 +38,11 @@ function SementeDemo() {
   coment('ana', 'a12', 'Dominância com Influência é um ótimo perfil para expansão. O cuidado é a escuta: a equipe precisa de espaço para errar e aprender.', -51);
 
   Object.assign(colecoes.acoes, {
-    d1: { coacheeId: 'ana', oque: 'Definir 3 indicadores do setor', quem: 'Ana', prazo: dia(-2), ok: false, pauta: false, criada: dia(-14) },
-    d2: { coacheeId: 'ana', oque: 'Delegar o fechamento do relatório mensal', quem: 'Carlos (equipe)', prazo: dia(4), ok: false, pauta: true, criada: dia(-14) },
-    d3: { coacheeId: 'ana', oque: 'Reunião semanal de 30 min com pauta fixa', quem: 'Ana', prazo: dia(-8), ok: true, okEm: dia(-9), pauta: false, criada: dia(-21) },
-    d4: { coacheeId: 'bruno', oque: 'Melhorar a produtividade da equipe', quem: 'Bruno', prazo: dia(22), ok: false, pauta: true, criada: dia(-5) },
-    d5: { coacheeId: 'diego', oque: 'Contratar um gerente financeiro', quem: 'Diego', prazo: dia(30), ok: false, pauta: true, criada: dia(-10) }
+    d1: { hora: '09:00', coacheeId: 'ana', oque: 'Definir 3 indicadores do setor', quem: 'Ana', prazo: dia(-2), ok: false, pauta: false, criada: dia(-14) },
+    d2: { hora: '14:00', coacheeId: 'ana', oque: 'Delegar o fechamento do relatório mensal', quem: 'Carlos (equipe)', prazo: dia(4), ok: false, pauta: true, criada: dia(-14) },
+    d3: { hora: '08:30', coacheeId: 'ana', oque: 'Reunião semanal de 30 min com pauta fixa', quem: 'Ana', prazo: dia(-8), ok: true, okEm: dia(-9), pauta: false, criada: dia(-21) },
+    d4: { hora: '10:00', coacheeId: 'bruno', oque: 'Melhorar a produtividade da equipe', quem: 'Bruno', prazo: dia(22), ok: false, pauta: true, criada: dia(-5) },
+    d5: { hora: '16:00', coacheeId: 'diego', oque: 'Contratar um gerente financeiro', quem: 'Diego', prazo: dia(30), ok: false, pauta: true, criada: dia(-10) }
   });
   const seg = R.segunda(h);
   const marcas = ns => ns.map(n => R.somaDias(seg, n)).filter(d => d <= h);
