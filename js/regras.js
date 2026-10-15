@@ -65,14 +65,17 @@ const Regras = (() => {
   /* ---------- paradas (RN-06) e reavaliação (RN-15) ---------- */
   // Paradas aos 3, 6, 9 e 12 meses do início. Abre 7 dias antes e fica aberta até ser registrada.
   function paradas(u, D, h) {
-    return [1, 2, 3, 4].map(n => {
+    const P = [1, 2, 3, 4].map(n => {
       const dt = n === 4 ? fimDoAcesso(u.inicio) : somaMeses(u.inicio, n * 3);
       const abre = somaDias(dt, -7); const reg = D.paradas[n];
       return { n, data: dt, abre, areas: n % 2 === 0, reg: reg || null, st: reg ? 'feito' : h >= abre ? 'aberto' : 'futuro' };
     });
+    // Parada não feita fica para trás quando a seguinte abre: assim ninguém fica preso numa parada antiga.
+    P.forEach((p, i) => { if (p.st === 'aberto' && P[i + 1] && h >= P[i + 1].abre) p.st = 'perdida'; });
+    return P;
   }
   const paradaAberta = (P) => P.find(p => p.st === 'aberto') || null;
-  const proximaParada = (P) => P.find(p => p.st !== 'feito') || null;
+  const proximaParada = (P) => P.find(p => p.st === 'aberto' || p.st === 'futuro') || null;
   const historico = (D, tipo) => D.assessments.filter(a => a.tipo === tipo).sort((a, b) => (a.data + (a.criado || '')).localeCompare(b.data + (b.criado || '')));
   // Liberado quando nunca foi feito, ou quando há parada aberta e o último resultado é anterior à abertura dela.
   function liberado(D, tipo, P) {

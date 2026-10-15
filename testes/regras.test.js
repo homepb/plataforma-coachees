@@ -136,3 +136,10 @@ test('parada aberta e não registrada entra em "Precisam de você"', () => {
   D.paradas[1] = { n: 1, data: '2026-11-10' };
   assert.equal(R.precisam([{ u, D }], [], h).some(x => x.tipo === 'parada'), false);
 });
+
+test('parada não feita fica para trás quando a seguinte abre', () => {
+  const u = { inicio: '2026-01-10' }; const D = vazio();
+  const P = R.paradas(u, D, '2026-07-08');
+  assert.equal(P[0].st, 'perdida'); assert.equal(R.paradaAberta(P).n, 2); assert.equal(R.proximaParada(P).n, 2);
+  assert.equal(R.paradaAberta(R.paradas(u, D, '2026-04-08')).n, 1);
+});
